@@ -128,6 +128,7 @@
 					<ws>gtk</ws>
 					<arch>amd64</arch>
 				  </environment>
+<!--
 				  <environment>
 					<os>freebsd</os>
 					<ws>gtk</ws>
@@ -138,6 +139,7 @@
 					<ws>gtk</ws>
 					<arch>powerpc64le</arch>
 				  </environment>
+-->
 				</environments>
 	          </configuration>
 	        </plugin>
