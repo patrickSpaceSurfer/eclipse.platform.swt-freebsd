@@ -363,7 +363,6 @@ void destroyWidget () {
  * </ul>
  *
  * @since 2.0
- *
  */
 public Color getBackground () {
 	checkWidget ();
@@ -534,7 +533,6 @@ public boolean getChecked () {
 /**
  * Returns <code>true</code> if the receiver is expanded,
  * and false otherwise.
- * <p>
  *
  * @return the expanded state
  *
@@ -604,7 +602,6 @@ public Font getFont (int index) {
  * </ul>
  *
  * @since 2.0
- *
  */
 public Color getForeground () {
 	checkWidget ();
@@ -1139,7 +1136,6 @@ public void removeAll () {
  * </ul>
  *
  * @since 2.0
- *
  */
 public void setBackground (Color color) {
 	checkWidget ();
@@ -1169,7 +1165,6 @@ public void setBackground (Color color) {
  * </ul>
  *
  * @since 3.1
- *
  */
 public void setBackground (int index, Color color) {
 	checkWidget ();
@@ -1213,7 +1208,6 @@ public void setBackground (int index, Color color) {
 
 /**
  * Sets the checked state of the receiver.
- * <p>
  *
  * @param checked the new checked state
  *
@@ -1238,7 +1232,6 @@ public void setChecked (boolean checked) {
 
 /**
  * Sets the expanded state of the receiver.
- * <p>
  *
  * @param expanded the new expanded state
  *
@@ -1380,7 +1373,6 @@ public void setFont (int index, Font font) {
  * </ul>
  *
  * @since 2.0
- *
  */
 public void setForeground (Color color){
 	checkWidget ();
@@ -1410,7 +1402,6 @@ public void setForeground (Color color){
  * </ul>
  *
  * @since 3.1
- *
  */
 public void setForeground (int index, Color color){
 	checkWidget ();

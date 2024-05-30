@@ -89,7 +89,6 @@ public RGBA(int red, int green, int blue, int alpha) {
 *    the saturation or brightness is not between 0 and 1 or if the alpha
 *    is not between 0 and 255</li>
 * </ul>
-*
 */
 public RGBA(float hue, float saturation, float brightness, float alpha) {
 	if ((alpha > 255) || (alpha < 0)) SWT.error(SWT.ERROR_INVALID_ARGUMENT);
@@ -126,8 +125,7 @@ public float[] getHSBA() {
 @Override
 public boolean equals(Object object) {
 	if (object == this) return true;
-	if (!(object instanceof RGBA)) return false;
-	RGBA rgba = (RGBA)object;
+	if (!(object instanceof RGBA rgba)) return false;
 	return (rgba.rgb.red == this.rgb.red) && (rgba.rgb.green == this.rgb.green) && (rgba.rgb.blue == this.rgb.blue)
 			&& (rgba.alpha == this.alpha);
 }

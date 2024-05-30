@@ -14,17 +14,19 @@
 package org.eclipse.swt.tests.junit;
 
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.PrintStream;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.SWTError;
 import org.eclipse.swt.SWTException;
-import org.eclipse.swt.events.PaintEvent;
-import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
@@ -33,10 +35,14 @@ import org.eclipse.swt.graphics.PaletteData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.test.Screenshots;
 
 public class SwtTestUtil {
 	/**
@@ -153,23 +159,10 @@ public static boolean isBidi() {
 public static void openShell(Shell shell) {
 	if (shell != null && !shell.getVisible()) {
 		if (isGTK) {
-			AtomicBoolean paintRequested = new AtomicBoolean(false);
-			shell.addPaintListener(new PaintListener() {
-				@Override
-				public void paintControl(PaintEvent e) {
-					paintRequested.set(true);
-					shell.removePaintListener(this);
-				}
-			});
-			shell.open();
-			long start = System.currentTimeMillis();
-			while (!paintRequested.get() && System.currentTimeMillis() - 1000 < start) {
-				processEvents();
-			}
+			waitEvent(() -> shell.open(), shell, SWT.Paint, 1000);
 		} else {
 			shell.open();
 		}
-
 	}
 }
 
@@ -191,6 +184,34 @@ public static void debugDisplayImage(Image image) {
 	// Create a paint handler for the canvas
 	canvas.addPaintListener(e -> e.gc.drawImage(image, 10, 10));
 	SwtTestUtil.openShell(shell);
+	while (!shell.isDisposed()) {
+		if (!display.readAndDispatch())
+			display.sleep();
+	}
+}
+
+/**
+ * When debugging a test that draws to an Image it can be useful to see the
+ * image in a shell. Call this method with the image to open it.
+ *
+ * This method is blocking, so should not be called in committed code or else
+ * the test will hang.
+ *
+ * @param images to display
+ */
+public static void debugDisplayImages(Image[] images, int numColumns) {
+	Display display = (Display) images[0].getDevice();
+	Shell shell = new Shell(display);
+	shell.setLayout(new GridLayout(numColumns, false));
+
+	for (Image image : images) {
+		Label label = new Label(shell, 0);
+		label.setImage(image);
+	}
+
+	shell.pack();
+	SwtTestUtil.openShell(shell);
+
 	while (!shell.isDisposed()) {
 		if (!display.readAndDispatch())
 			display.sleep();
@@ -246,6 +267,50 @@ public static void debugDisplayDifferences(Image expected, Image actual) {
 
 }
 
+public static void dumpShellState(PrintStream out) {
+	final Display display = Display.getCurrent();
+
+	out.println("Display.getFocusControl() and its parents: ");
+	Control focusControl = display.getFocusControl();
+	if (focusControl == null) {
+		out.println("  <null>");
+	} else {
+		StringBuilder indent = new StringBuilder();
+		do {
+			Rectangle bounds = focusControl.getBounds();
+
+			out.format(
+				"  %08X Rect=[%4d,%4d - %4dx%4d] %s%s%n",
+				focusControl.hashCode(),
+				bounds.x, bounds.y, bounds.width, bounds.height,
+				indent,
+				focusControl
+			);
+
+			focusControl = focusControl.getParent();
+			indent.append("  ");
+		} while (focusControl != null);
+	}
+
+	out.println("Display.getShells(): ");
+	final Shell[] shells = display.getShells();
+	if (shells.length == 0) {
+		out.println("  <none>");
+	} else {
+		for (Shell shell : shells) {
+			Rectangle bounds = shell.getBounds();
+
+			out.format(
+				"  %08X Active=%c Visible=%c Rect=[%4d,%4d - %4dx%4d] Title=%s%n",
+				shell.hashCode(),
+				(display.getActiveShell() == shell) ? 'Y' : 'N',
+				shell.isVisible() ? 'Y' : 'N',
+				bounds.x, bounds.y, bounds.width, bounds.height,
+				shell.getText()
+			);
+		}
+	}
+}
 
 public static Image createImage(int[][] pixels, int startColumn, int numColumns) {
 	int width = pixels.length;
@@ -319,6 +384,92 @@ public static void processEvents() {
 		while (display.readAndDispatch()) {
 		}
 	}
+}
+
+public static void processEvents(int timeoutMs, BooleanSupplier breakCondition) throws InterruptedException {
+	if (breakCondition == null) {
+		breakCondition = () -> false;
+	}
+	long targetTimestamp = System.currentTimeMillis() + timeoutMs;
+	Display display = Display.getCurrent();
+	while (!breakCondition.getAsBoolean()) {
+		if (!display.readAndDispatch()) {
+			if (System.currentTimeMillis() < targetTimestamp) {
+				Thread.sleep(50);
+			} else {
+				return;
+			}
+		}
+	}
+}
+
+/**
+ * Wait until specified control receives specified event.
+ *
+ * @param trigger       may be null. Code that is expected to send event.
+ *                      Note that if you trigger it outside, then event may
+ *                      arrive *before* you call this function, and it will
+ *                      fail to receive event.
+ * @param control       control expected to receive the event
+ * @param swtEvent      event, such as SWT.Paint
+ * @param timeoutMsec   how long to wait for event
+ * @return <code>true</code> if event was received
+ */
+public static boolean waitEvent(Runnable trigger, Control control, int swtEvent, int timeoutMsec) {
+	AtomicBoolean eventReceived = new AtomicBoolean(false);
+	Listener listener = event -> {
+		eventReceived.set(true);
+	};
+
+	control.addListener(swtEvent, listener);
+	try {
+		if (trigger != null)
+			trigger.run();
+
+		long start = System.currentTimeMillis();
+		while (!eventReceived.get()) {
+			if (System.currentTimeMillis() - start > timeoutMsec) return false;
+			processEvents();
+		}
+	} finally {
+		control.removeListener(swtEvent, listener);
+	}
+
+	return true;
+}
+
+/**
+ * Wait until specified Shell becomes active, or internal timeout elapses.
+ *
+ * @param trigger       may be null. Code that causes Shell to become active.
+ *                      Note that if you trigger it outside, then event may
+ *                      arrive *before* you call this function, and it will
+ *                      fail to receive event.
+ * @param shell         the Shell to wait for
+ * @return <code>true</code> if Shell became active within timeout
+ */
+public static void waitShellActivate(Runnable trigger, Shell shell) {
+	final int timeoutInMsec = 3000;
+
+	Runnable triggerWithEnforcedShellActivationOnMacOs = () -> {
+		trigger.run();
+		if (isCocoa) {
+			// Issue #731: if another app gains focus during entire JUnit session,
+			// newly opened Shells do not activate. The workaround is to activate
+			// explicitly.
+			shell.forceActive();
+		}
+	};
+
+	// Issue #726: On GTK, 'Display.getActiveShell()' reports incorrect Shell.
+	// The workaround is to wait until 'SWT.Activate' is received.
+	if (waitEvent(triggerWithEnforcedShellActivationOnMacOs, shell, SWT.Activate, timeoutInMsec)) return;
+
+	// Something went wrong? Get more info to diagnose
+	Screenshots.takeScreenshot(SwtTestUtil.class, "waitShellActivate-" + System.currentTimeMillis());
+	dumpShellState(System.out);
+	assertThat("Shell did not activate", shell.getDisplay().getActiveShell(), is(shell));
+	fail("SWT.Activate was not received but Shell is (incorrectly?) reported active");
 }
 
 /**

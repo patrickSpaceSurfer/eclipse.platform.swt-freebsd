@@ -757,7 +757,7 @@ void createHandle (int index) {
 				 * Fix is to implement a similar gtk_window_set_destroy_with_parent with its *logical*
 				 * parent by connecting a "destroy" signal.
 				 */
-				if (!OS.isX11()) {
+				if (OS.isWayland()) {
 					Composite topLevelParent = parent;
 					while (topLevelParent != null && (topLevelParent.style & SWT.ON_TOP) != 0) {
 						topLevelParent = parent.getParent();
@@ -785,7 +785,14 @@ void createHandle (int index) {
 				}
 			}
 		} else if ((style & SWT.ON_TOP) != 0) {
-			GTK3.gtk_window_set_keep_above(shellHandle, true);
+			/*
+			 * gtk_window_set_keep_above is not available in GTK 4.
+			 * No replacements were provided. GTK dev suggestion is
+			 * to use platform-specific API if this functionality
+			 * is necessary.
+			 */
+
+			if(!GTK.GTK4)GTK3.gtk_window_set_keep_above(shellHandle, true);
 		}
 
 		GTK.gtk_window_set_title(shellHandle, new byte[1]);
@@ -840,7 +847,7 @@ void createHandle (int index) {
 
 @Override
 long filterProc (long xEvent, long gdkEvent, long data2) {
-	if (!OS.isX11()) return 0;
+	if (OS.isWayland()) return 0;
 	int eventType = OS.X_EVENT_TYPE (xEvent);
 	if (eventType != OS.FocusOut && eventType != OS.FocusIn) return 0;
 	XFocusChangeEvent xFocusEvent = new XFocusChangeEvent();
@@ -903,7 +910,6 @@ Composite findDeferredControl () {
  * trim. This will return <code>null</code> if the platform does not support tool bars that
  * are not part of the content area of the shell, or if the Shell's style does not support
  * having a tool bar.
- * <p>
  *
  * @return a ToolBar object representing the Shell's tool bar, or <code>null</code>.
  *
@@ -1096,7 +1102,7 @@ void fixStyle (long handle) {
 void forceResize () {
 	GtkAllocation allocation = new GtkAllocation ();
 	GTK.gtk_widget_get_allocation (vboxHandle, allocation);
-	if (!OS.isX11()) {
+	if (OS.isWayland()) {
 		/*
 		 * Bug 540163: We sometimes are getting the container's allocation
 		 * before Shell is fully opened, which gets an incorrect allocation.
@@ -1132,7 +1138,7 @@ void forceResize (int width, int height) {
 	 * Bug 535075, 536153: On Wayland, we need to set the position of the GtkBox container
 	 * relative to the shellHandle to prevent window contents rendered with offset.
 	 */
-	if (!OS.isX11()) {
+	if (OS.isWayland()) {
 		if (GTK.GTK4) {
 			double[] window_offset_x = new double[1], window_offset_y = new double[1];
 			boolean validTranslation = GTK4.gtk_widget_translate_coordinates(vboxHandle, shellHandle, 0, 0, window_offset_x, window_offset_y);
@@ -1217,7 +1223,6 @@ int getResizeMode (double x, double y) {
 /**
  * Returns <code>true</code> if the receiver is currently
  * in fullscreen state, and false otherwise.
- * <p>
  *
  * @return the fullscreen state
  *
@@ -1388,7 +1393,6 @@ public boolean getVisible () {
  * </ul>
  *
  * @since 3.0
- *
  */
 @Override
 public Region getRegion () {
@@ -1428,7 +1432,7 @@ Shell _getShell () {
 /**
  * Returns an array containing all shells which are
  * descendants of the receiver.
- * <p>
+ *
  * @return the dialog shells
  *
  * @exception SWTException <ul>
@@ -1599,6 +1603,7 @@ long gtk_focus_in_event (long widget, long event) {
 	} else {
 		ignoreFocusIn = false;
 	}
+	restoreFocus();
 	return 0;
 }
 
@@ -1853,7 +1858,7 @@ long gtk_size_allocate (long widget, long allocation) {
 	//  infinitely recursive resize call. This causes non-resizable Shells/Dialogs to
 	//  crash. Fix: only call resizeBounds() on resizable Shells.
 	if ((!resized || oldWidth != width || oldHeight != height)
-			&& (!OS.isX11() ? ((style & SWT.RESIZE) != 0) : true)) {  //Wayland
+			&& (OS.isWayland() ? ((style & SWT.RESIZE) != 0) : true)) {
 		oldWidth = width;
 		oldHeight = height;
 		resizeBounds (width, height, true); //this is called to resize child widgets when the shell is resized.
@@ -2024,8 +2029,9 @@ long notifyState (long object, long arg0) {
  */
 public void open () {
 	checkWidget ();
-	bringToTop (false);
 	setVisible (true);
+	// force is necessary, because otherwise it won't do anything
+	bringToTop (true);
 	if (isDisposed ()) return;
 	/*
 	 * When no widget has been given focus, or another push button has focus,
@@ -2246,8 +2252,10 @@ void resizeBounds (int width, int height, boolean notify) {
 	if (GTK.GTK4) {
 		if (parent != null) {
 			GtkAllocation allocation = new GtkAllocation();
+			GtkAllocation currentSizeAlloc = new GtkAllocation();
+			GTK.gtk_widget_get_allocation(vboxHandle, currentSizeAlloc);
 			allocation.width = width;
-			allocation.height = height;
+			allocation.height = height + currentSizeAlloc.y;
 			GTK4.gtk_widget_size_allocate(shellHandle, allocation, -1);
 		}
 	} else {
@@ -2928,7 +2936,7 @@ public void setVisible (boolean visible) {
 		 * the screen. The fix is to set the default size to the smallest possible (1, 1)
 		 * before gtk_widget_show.
 		 */
-		if (oldWidth == 0 && oldHeight == 0) {
+		if (!GTK.GTK4 && (oldWidth == 0 && oldHeight == 0)) {
 			int [] init_width = new int[1], init_height = new int[1];
 			GTK3.gtk_window_get_size(shellHandle, init_width, init_height);
 			GTK3.gtk_window_resize(shellHandle, 1, 1);
@@ -3263,7 +3271,7 @@ void deregister () {
 }
 
 boolean requiresUngrab () {
-	return !OS.isX11() && (style & SWT.ON_TOP) != 0 && (style & SWT.NO_FOCUS) == 0;
+	return OS.isWayland() && (style & SWT.ON_TOP) != 0 && (style & SWT.NO_FOCUS) == 0;
 }
 
 /**

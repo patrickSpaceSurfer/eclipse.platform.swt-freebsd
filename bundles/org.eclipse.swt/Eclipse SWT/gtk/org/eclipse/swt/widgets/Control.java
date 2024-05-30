@@ -113,7 +113,6 @@ public abstract class Control extends Widget implements Drawable {
 	 * is currently pressed or released for DND.
 	 */
 	static boolean mouseDown;
-	boolean dragBegun;
 
 	/**
 	 * Flag to check the scale factor upon the first drawing of this Control.
@@ -294,7 +293,6 @@ long eventSurface () {
 /**
  * GdkEventType constants different on GTK4 and GTK3.
  * This checks for GTK versions and return the correct constants defined in GDK.java
- * @param eventType
  * @return constant defined
  */
 static int fixGdkEventTypeValues(int eventType) {
@@ -1397,7 +1395,7 @@ public void setRegion (Region region) {
 		 * This is a hack to force the outside pixels to be transparent on Wayland so that
 		 * Part-Drag on Eclipse does not cause black-out. See Bug 535083.
 		 */
-		if (!OS.isX11()) {
+		if (OS.isWayland()) {
 			double alpha = GTK.gtk_widget_get_opacity(topHandle);
 			if (alpha == 1) alpha = 0.99;
 			GTK.gtk_widget_set_opacity(topHandle, alpha);
@@ -2671,36 +2669,66 @@ boolean dragDetect (int button, int count, int stateMask, int x, int y) {
 }
 
 boolean dragDetect (int x, int y, boolean filter, boolean dragOnTimeout, boolean [] consume) {
-	boolean dragging = false;
-	/*
-	 * Feature in GTK: In order to support both X.11/Wayland, GTKGestures are used
-	 *  as of GTK3.14 in order to acquire mouse position offsets to decide on dragging.
-	 *  See Bug 503431.
-	 */
-	if (!OS.isX11()) { // Wayland
+	// Historically, SWT detected drag&drop on X11 this way:
+	//   1) on left mouse down event, begin a modal event loop
+	//      In GTK, this is `button-press-event` signal.
+	//      In SWT, this is `Control#gtk_button_press_event()`
+	//   2) In the loop, wait for mouse to move far enough to trigger drag&drop action
+	//   3) If drag&drop is not triggered within 500ms, or mouse button released, or Esc pressed,
+	//      and a few other conditions, consider it NOT drag&drop and a mere mouse click.
+	//
+	// However, on Wayland, it is no longer possible: as long as SWT does not
+	// return from `button-press-event` signal handler, it is not possible to
+	// receive ANY mouse events from `gdk_event_get()`. Not mouse movements,
+	// not even mouse up event. This causes SWT to pointlessly loop for 500ms
+	// after each mouse down.
+	//
+	// In Bug 503431, approach was changed to trigger drag&drop from MouseMove signal instead
+	//   In GTK, this is `motion-notify-event` signal.
+	//   In SWT, this is `Control#gtk_motion_notify_event()`
+	//
+	// Initially the new code was supposed to work on both X11 and Wayland, but unfortunately
+	// the new implementation had its problems:
+	// * Bug 503431 - `StyledText` wants to know if DND has started right after calling `dragDetect()`
+	//   This required the workaround where `MouseDown` event is not reported until DND decision is made.
+	// * Bug 503431 - multi-select `Tree`, `Table`, `List` drag&drop broken (only drags one item)
+	//   This is because GTK itself doesn't support multi-item DND.
+	// * Bug 503431 - various mistakes
+	//   For example, there was a `Callback` leak. It was fixed soon after.
+	// * Issue 400  - wrong mouse events reporting
+	//   This is what I'm fixing now.
+	//
+	// As a result, in Bug 510446, the new implementation was limited to Wayland only, so that more
+	// common back then X11 could continue to work without bugs.
+	//
+	// I hope that I fixed the last of the problems on Wayland now (2023-03-11),
+	// and X11 code could finally be thrown away. But I don't think I dare to try it right now.
+
+	if (OS.isWayland()) {
+		// Don't drag if mouse is not down. This condition is not as
+		// trivial as it seems, see Bug 541635 where drag is tested
+		// after drag already completed and mouse is released.
+		if (!mouseDown) {
+			return false;
+		}
+
 		double [] offsetX = new double[1];
 		double [] offsetY = new double [1];
 		double [] startX = new double[1];
 		double [] startY = new double [1];
-		if (GTK.gtk_gesture_drag_get_start_point(dragGesture, startX, startY)) {
-			GTK.gtk_gesture_drag_get_offset(dragGesture, offsetX, offsetY);
-			if (GTK3.gtk_drag_check_threshold(handle, (int)startX[0], (int) startY[0], (int) startX[0]
-					+ (int) offsetX[0], (int) startY[0] + (int) offsetY[0])) {
-				dragging = true;
-			}
-		} else {
+		if (!GTK.gtk_gesture_drag_get_start_point(dragGesture, startX, startY)) {
 			return false;
 		}
-		// Block until mouse was released or drag was detected, see Bug 515396.
-		while (true) {
-			if (!mouseDown) {
-				return false;
-			}
-			if (dragBegun) {
-				return true;
-			}
+
+		GTK.gtk_gesture_drag_get_offset(dragGesture, offsetX, offsetY);
+		if (GTK3.gtk_drag_check_threshold(handle, (int)startX[0], (int) startY[0], (int) startX[0]
+				+ (int) offsetX[0], (int) startY[0] + (int) offsetY[0])) {
+			return true;
 		}
+
+		return false;
 	} else {
+		boolean dragging = false;
 		boolean quit = false;
 		//428852 DND workaround for GTK3.
 		//Gtk3 no longer sends motion events on the same control during thread sleep
@@ -2801,8 +2829,8 @@ boolean dragDetect (int x, int y, boolean filter, boolean dragOnTimeout, boolean
 			}
 			gdk_event_free (eventPtr);
 		}
+		return dragging;
 	}
-	return dragging;
 }
 
 boolean filterKey (long event) {
@@ -2915,6 +2943,7 @@ public boolean forceFocus () {
 	Shell shell = getShell ();
 	shell.setSavedFocus (this);
 	if (!isEnabled () || !isVisible ()) return false;
+	if (display.getActiveShell() != shell && !Display.isActivateShellOnForceFocus()) return false;
 	shell.bringToTop (false);
 	return forceFocus (focusHandle ());
 }
@@ -3429,7 +3458,6 @@ void gtk_style_context_get_border (long context, int state, GtkBorder padding) {
 @Override
 void gtk_gesture_press_event (long gesture, int n_press, double x, double y, long event) {
 	mouseDown = true;
-	dragBegun = false;
 
 	int eventButton = GDK.gdk_button_event_get_button(event);
 	int eventTime = GDK.gdk_event_get_time(event);
@@ -3471,9 +3499,18 @@ long gtk_button_press_event (long widget, long event) {
 	return gtk_button_press_event (widget, event, true);
 }
 
+boolean wantDragDropDetection () {
+	// Drag&drop detection has its costs: when mouse button is pressed,
+	// mouse events are not reported until SWT can decide if drag&drop
+	// was triggered or not. For some applications, this could be a problem.
+	// Consider for example a graphical drawing application: it would expect
+	// to begin drawing as soon as mouse button is pressed.
+	// If app is interested in drag&drop, it will likely listen to `DragDetect`.
+	return hooks (SWT.DragDetect);
+}
+
 long gtk_button_press_event (long widget, long event, boolean sendMouseDown) {
 	mouseDown = true;
-	dragBegun = false;
 
 	double [] eventX = new double [1];
 	double [] eventY = new double [1];
@@ -3518,12 +3555,10 @@ long gtk_button_press_event (long widget, long event, boolean sendMouseDown) {
 			if (peekedEventType == GDK.GDK_3BUTTON_PRESS) display.clickCount = 3;
 			gdk_event_free (nextEvent);
 		}
-		/*
-		 * Feature in GTK: DND detection for X.11 & Wayland support is done through motion notify event
-		 * instead of mouse click event. See Bug 503431.
-		 */
-		if (OS.isX11()) { // Wayland
-			if ((state & DRAG_DETECT) != 0 && hooks (SWT.DragDetect)) {
+
+		// See comment in #dragDetect()
+		if (OS.isX11()) {
+			if ((state & DRAG_DETECT) != 0 && wantDragDropDetection ()) {
 				if (eventButton[0] == 1) {
 					boolean [] consume = new boolean [1];
 					if (dragDetect ((int) eventX[0], (int) eventY[0], true, true, consume)) {
@@ -3542,11 +3577,9 @@ long gtk_button_press_event (long widget, long event, boolean sendMouseDown) {
 			}
 		}
 		if (isDisposed ()) return 1;
-		/*
-		 * Feature in GTK: DND detection for X.11 & Wayland support is done through motion notify event
-		 * instead of mouse click event. See Bug 503431.
-		 */
-		if (OS.isX11()) { // Wayland
+
+		// See comment in #dragDetect()
+		if (OS.isX11()) {
 			if (dragging) {
 				Point scaledEvent = DPIUtil.autoScaleDown(new Point((int)eventX[0], (int) eventY[0]));
 				sendDragEvent (eventButton[0], eventState[0], scaledEvent.x, scaledEvent.y, false);
@@ -3615,6 +3648,18 @@ long gtk_commit (long imcontext, long text) {
 
 @Override
 void gtk4_enter_event(long controller, double x, double y, long event) {
+	/*
+	 * Set tool tip for this shell, and also null tooltip for shell
+	 * if control being entered does not have a tooltip text set.
+	 */
+	byte [] buffer = null;
+	if (toolTipText != null && toolTipText.length() != 0) {
+		char [] chars = fixMnemonic (toolTipText, false, true);
+		buffer = Converter.wcsToMbcs (chars, true);
+	}
+	long toolHandle = getShell().handle;
+	GTK.gtk_widget_set_tooltip_text (toolHandle, buffer);
+
 	if (display.currentControl == this) return;
 
 	// Disconnect previous current Control and send MouseExit event to it
@@ -4097,10 +4142,6 @@ long gtk_mnemonic_activate (long widget, long arg1) {
 
 @Override
 void gtk4_motion_event(long controller, double x, double y, long event) {
-	if (mouseDown) {
-		dragBegun = true;
-	}
-
 	if (this == display.currentControl && (hooks(SWT.MouseHover) || filters(SWT.MouseHover))) {
 		display.addMouseHoverTimeout(handle);
 	}
@@ -4131,9 +4172,6 @@ void gtk4_motion_event(long controller, double x, double y, long event) {
 @Override
 long gtk_motion_notify_event (long widget, long event) {
 	int result;
-	if (mouseDown) {
-		dragBegun = true;
-	}
 
 	double[] eventX = new double[1];
 	double[] eventY = new double[1];
@@ -4143,13 +4181,10 @@ long gtk_motion_notify_event (long widget, long event) {
 	lastInput.y = (int)eventY[0];
 	if (containedInRegion(lastInput.x, lastInput.y)) return 0;
 
-	/*
-	 * Feature in GTK: DND detection for X.11 & Wayland support is done through motion notify event
-	 * instead of mouse click event. See Bug 503431.
-	 */
-	if (!OS.isX11()) { // Wayland
+	// See comment in #dragDetect()
+	if ((dragDetectionQueue != null) && OS.isWayland()) {
 		boolean dragging = false;
-		if ((state & DRAG_DETECT) != 0 && hooks (SWT.DragDetect)) {
+		if ((state & DRAG_DETECT) != 0 && wantDragDropDetection ()) {
 				boolean [] consume = new boolean [1];
 				if (dragDetect ((int) eventX[0], (int) eventY[0], true, true, consume)) {
 					dragging = true;
@@ -4860,7 +4895,24 @@ void restackWindow (long window, long sibling, boolean above) {
 	GDK.gdk_window_restack (window, sibling, above);
 }
 
+void flushQueueOnDnd() {
+	// Case where mouse motion triggered a DnD:
+	// Send only initial MouseDown but not the MouseMove events that were used
+	// to determine DnD threshold.
+	// This is to preserve backwards Cocoa/Win32 compatibility.
+	Event mouseDownEvent = dragDetectionQueue.getFirst();
+	mouseDownEvent.data = Boolean.valueOf(true); // force send MouseDown to avoid subsequent MouseMove before MouseDown.
+	dragDetectionQueue = null;
+	sendOrPost(SWT.MouseDown, mouseDownEvent);
+}
+
 boolean sendDragEvent (int button, int stateMask, int x, int y, boolean isStateMask) {
+	if (OS.isWayland() && dragDetectionQueue != null) {
+		// Flush events used to detect drag&drop just before sending `DragDetect` event.
+		// This is to maintain the same order of events as on other platforms.
+		flushQueueOnDnd();
+	}
+
 	Event event = new Event ();
 	event.button = button;
 	Rectangle eventRect = new Rectangle (x, y, 0, 0);
@@ -5003,7 +5055,7 @@ boolean sendMouseEvent (int type, int button, int count, int detail, boolean sen
 		 * event, similar to the way the caching logic does it when receiving a
 		 * MouseMove event. See bug 529126.
 		 */
-		if (!OS.isX11() && dragDetectionQueue != null) {
+		if (OS.isWayland() && dragDetectionQueue != null) {
 			/*
 			 * The first event in the queue will always be a MouseDown, as
 			 * the queue is only ever created if a MouseDown event is being cached.
@@ -5071,25 +5123,24 @@ boolean sendMouseEvent (int type, int button, int count, int detail, boolean sen
 	 *   On Wayland mouseMove is once again sent during DnD as per improved architecture.
 	 */
 	event.data = Boolean.valueOf(send);
-	if (!OS.isX11()) {
+	if (OS.isWayland()) {
 		if (type == SWT.MouseDown) {
-			// Delay MouseDown
-			dragDetectionQueue = new LinkedList<>();
-			dragDetectionQueue.add(event);
-			return true; // event never canceled as not yet sent.
+			if (wantDragDropDetection ()) {
+				// Delay MouseDown
+				dragDetectionQueue = new LinkedList<>();
+				dragDetectionQueue.add(event);
+				return true; // event never canceled as not yet sent.
+			}
 		} else {
 			if (dragDetectionQueue != null) {
 				switch (type) {
 				case SWT.MouseMove:
 					if (dragDetect (event.x, event.y, false, true, null)) {
-						// Case where mouse motion triggered a DnD:
-						// Send only initial MouseDown but not the MouseMove events that were used
-						// to determine DnD threshold.
-						// This is to preserve backwards Cocoa/Win32 compatibility.
-						Event mouseDownEvent = dragDetectionQueue.getFirst();
-						mouseDownEvent.data = Boolean.valueOf(true); // force send MouseDown to avoid subsequent MouseMove before MouseDown.
-						dragDetectionQueue = null;
-						sendOrPost(SWT.MouseDown, mouseDownEvent);
+						// Note that if drag&drop is initiated, `dragDetect()` will no longer return true,
+						// because GTK considers gesture to be complete and inactive. In this case, code
+						// in #sendDragEvent() will flush the queue. This code path is used in the case when
+						// someone is listening to `DragDetect` but decided not to initiate drag&drop.
+						flushQueueOnDnd();
 					} else {
 						dragDetectionQueue.add(event);
 					}
@@ -5787,7 +5838,6 @@ void setOrientation (boolean create) {
 /**
  * Sets the orientation of the receiver, which must be one
  * of the constants <code>SWT.LEFT_TO_RIGHT</code> or <code>SWT.RIGHT_TO_LEFT</code>.
- * <p>
  *
  * @param orientation new orientation style
  *
@@ -6190,7 +6240,7 @@ void setZOrder (Control sibling, boolean above, boolean fixRelations, boolean fi
 				}
 			}
 			long redrawWindow = fixChildren ? parent.redrawWindow : 0;
-			if (!OS.isX11 () || (siblingWindow == 0 && (!above || redrawWindow == 0))) {
+			if (OS.isWayland () || (siblingWindow == 0 && (!above || redrawWindow == 0))) {
 				if (above) {
 					GDK.gdk_window_raise (window);
 					if (redrawWindow != 0) GDK.gdk_window_raise (redrawWindow);
@@ -6771,10 +6821,11 @@ boolean traverseMnemonic (char key) {
 public void update () {
 	checkWidget ();
 	update (false, true);
+
 }
 
 void update (boolean all, boolean flush) {
-//	checkWidget();
+	if(GTK.GTK4) GTK.gtk_widget_queue_draw(handle);
 	if (!GTK.gtk_widget_get_visible (topHandle ())) return;
 	if (!GTK.gtk_widget_get_realized (handle)) return;
 	long window = paintWindow ();

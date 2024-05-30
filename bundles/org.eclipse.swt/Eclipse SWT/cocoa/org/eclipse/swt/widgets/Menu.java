@@ -790,8 +790,7 @@ public boolean isVisible () {
 @Override
 void menu_willHighlightItem(long id, long sel, long menu, long itemID) {
 	Widget widget = display.getWidget(itemID);
-	if (widget instanceof MenuItem) {
-		MenuItem item = (MenuItem)widget;
+	if (widget instanceof MenuItem item) {
 		item.sendEvent (SWT.Arm);
 	}
 }
@@ -1104,7 +1103,6 @@ public void setLocation (Point location) {
 /**
  * Sets the orientation of the receiver, which must be one
  * of the constants <code>SWT.LEFT_TO_RIGHT</code> or <code>SWT.RIGHT_TO_LEFT</code>.
- * <p>
  *
  * @param orientation new orientation style
  *

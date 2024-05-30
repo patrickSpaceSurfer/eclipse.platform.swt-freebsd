@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corporation and others.
+ * Copyright (c) 2000, 2022 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -10,6 +10,7 @@
  *
  * Contributors:
  *     IBM Corporation - initial API and implementation
+ *     Christoph Läubrich - Issue #64 - Integration with java.util.concurrent framework
  *******************************************************************************/
 package org.eclipse.swt.widgets;
 
@@ -19,6 +20,7 @@ import java.lang.reflect.*;
 import java.net.*;
 import java.util.*;
 import java.util.Map.*;
+import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.regex.*;
 import java.util.regex.Pattern;
@@ -111,7 +113,7 @@ import org.eclipse.swt.internal.gtk4.*;
  * @see <a href="http://www.eclipse.org/swt/">Sample code and further information</a>
  * @noextend This class is not intended to be subclassed by clients.
  */
-public class Display extends Device {
+public class Display extends Device implements Executor {
 
 	static boolean strictChecks = System.getProperty("org.eclipse.swt.internal.gtk.enableStrictChecks") != null;
 
@@ -926,6 +928,49 @@ public void asyncExec (Runnable runnable) {
 			}
 		}
 		synchronizer.asyncExec (runnable);
+	}
+}
+
+/**
+ * Executes the given runnable in the user-interface thread of this Display.
+ * <ul>
+ * <li>If the calling thread is the user-interface thread of this display it is
+ * executed immediately and the method returns after the command has run, as with
+ * the method {@link Display#syncExec(Runnable)}.</li>
+ * <li>In all other cases the <code>run()</code> method of the runnable is
+ * asynchronously executed as with the method
+ * {@link Display#asyncExec(Runnable)} at the next reasonable opportunity. The
+ * caller of this method continues to run in parallel, and is not notified when
+ * the runnable has completed.</li>
+ * </ul>
+ * <p>
+ * This can be used in cases where one want to execute some piece of code that
+ * should be guaranteed to run in the user-interface thread regardless of the
+ * current thread.
+ * </p>
+ *
+ * <p>
+ * Note that at the time the runnable is invoked, widgets that have the receiver
+ * as their display may have been disposed. Therefore, it is advised to check
+ * for this case inside the runnable before accessing the widget.
+ * </p>
+ *
+ * @param runnable the runnable to execute in the user-interface thread, never
+ *                 <code>null</code>
+ * @throws RejectedExecutionException if this task cannot be accepted for
+ *                                    execution
+ * @throws NullPointerException       if runnable is null
+ */
+@Override
+public void execute(Runnable runnable) {
+	Objects.requireNonNull(runnable);
+	if (isDisposed()) {
+		throw new RejectedExecutionException(new SWTException (SWT.ERROR_WIDGET_DISPOSED, null));
+	}
+	if (thread == Thread.currentThread()) {
+		syncExec(runnable);
+	} else {
+		asyncExec(runnable);
 	}
 }
 
@@ -1858,12 +1903,12 @@ public Control getCursorControl () {
 		}
 		handle = user_data [0];
 	} else {
-		/*
-		* Feature in GTK. gdk_window_at_pointer() will not return a window
-		* if the pointer is over a foreign embedded window. The fix is to use
-		* XQueryPointer to find the containing GDK window.
-		*/
-		if (!OS.isX11()) return null;
+		// Feature in GTK. The gdk_device_get_[surface/window]_at_position() functions will not return a
+		// surface/window if the pointer is over a foreign embedded window. The fix is to use XQueryPointer
+		// to find the containing GDK window (see bug 177368.)
+		// However embedding foreign windows is not supported by the Wayland backend for GTK3 and is not
+		// supported at all on GTK4, so skip the heuristic in these situations.
+		if (OS.isWayland() || GTK.GTK4) return null;
 		long gdkDisplay = GDK.gdk_display_get_default();
 		if (OS.isX11()) {
 			GDK.gdk_x11_display_error_trap_push(gdkDisplay);
@@ -1956,7 +2001,7 @@ Point getCursorLocationInPixels() {
 		 * a subsurface. There is currently no support for global coordinates
 		 * in Wayland. See Bug 514483.
 		 */
-		if (!OS.isX11() && activeShell != null) {
+		if (OS.isWayland() && activeShell != null) {
 			Shell tempShell = activeShell;
 			int [] offsetX = new int [1], offsetY = new int [1];
 			while (tempShell.getParent() != null) {
@@ -2558,9 +2603,6 @@ Dialog getModalDialog () {
  * windows.  See http://freedesktop.org/Standards/wm-spec.
  */
 Rectangle getWorkArea() {
-	if (OS.IsWin32) {
-		return null;
-	}
 	byte[] name = Converter.wcsToMbcs ("_NET_WORKAREA", true); //$NON-NLS-1$
 	long atom = GDK.gdk_atom_intern (name, true);
 	if (atom == GDK.GDK_NONE) return null;
@@ -3747,13 +3789,11 @@ void initializeSubclasses () {
 		OS.G_OBJECT_CLASS_SET_CONSTRUCTOR (pangoFontFaceClass, OS.pangoFontFaceNewProc_CALLBACK(pangoFontFaceNewProc));
 		OS.g_type_class_unref (pangoFontFaceClass);
 
-		if (!OS.IsWin32) { /* TODO [win32] replace unixprint */
-			long printerOptionWidgetType = GTK.gtk_printer_option_widget_get_type();
-			long printerOptionWidgetClass = OS.g_type_class_ref (printerOptionWidgetType);
-			printerOptionWidgetNewProc = OS.G_OBJECT_CLASS_CONSTRUCTOR (printerOptionWidgetClass);
-			OS.G_OBJECT_CLASS_SET_CONSTRUCTOR (printerOptionWidgetClass, OS.printerOptionWidgetNewProc_CALLBACK(printerOptionWidgetNewProc));
-			OS.g_type_class_unref (printerOptionWidgetClass);
-		}
+		long printerOptionWidgetType = GTK.gtk_printer_option_widget_get_type();
+		long printerOptionWidgetClass = OS.g_type_class_ref (printerOptionWidgetType);
+		printerOptionWidgetNewProc = OS.G_OBJECT_CLASS_CONSTRUCTOR (printerOptionWidgetClass);
+		OS.G_OBJECT_CLASS_SET_CONSTRUCTOR (printerOptionWidgetClass, OS.printerOptionWidgetNewProc_CALLBACK(printerOptionWidgetNewProc));
+		OS.g_type_class_unref (printerOptionWidgetClass);
 	}
 }
 
@@ -4232,7 +4272,6 @@ long findFocusedWindow() {
  * </ul>
  *
  * @since 3.0
- *
  */
 public boolean post (Event event) {
 	/*
@@ -5148,10 +5187,12 @@ public static String getAppVersion () {
  * to any value other than "SWT" (case insensitive),
  * it is used to set the application user model ID
  * which is used by the OS for taskbar grouping.
- * @see <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd378459%28v=vs.85%29.aspx#HOW">AppUserModelID (Windows)</a>
- * </p><p>
+ * </p>
+ * <p>
  * Specifying <code>null</code> for the name clears it.
  * </p>
+ *
+ * @see <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/dd378459%28v=vs.85%29.aspx#HOW">AppUserModelID (Windows)</a>
  *
  * @param name the new app name or <code>null</code>
  */
@@ -5774,6 +5815,25 @@ void saveResources () {
 	}
 }
 
+private void sendJDKInternalEvent(int eventType) {
+	sendJDKInternalEvent(eventType, 0);
+}
+/** does sent event with JDK time**/
+private void sendJDKInternalEvent(int eventType, int detail) {
+	if (eventTable == null || !eventTable.hooks (eventType)) {
+		return;
+	}
+	Event event = new Event ();
+	event.detail = detail;
+	event.display = this;
+	event.type = eventType;
+	// time is set for debugging purpose only:
+	event.time = (int) (System.nanoTime() / 1000_000L);
+	if (!filterEvent (event)) {
+		sendEvent (eventTable, event);
+	}
+}
+
 void sendEvent (int eventType, Event event) {
 	if (eventTable == null && filterTable == null) {
 		return;
@@ -5801,11 +5861,7 @@ void sendPreEvent (int eventType) {
 	if (eventType != SWT.PreEvent && eventType != SWT.PostEvent
 			&& eventType != SWT.PreExternalEventDispatch
 			&& eventType != SWT.PostExternalEventDispatch) {
-		if (eventTable != null && eventTable.hooks (SWT.PreEvent)) {
-			Event event = new Event ();
-			event.detail = eventType;
-			sendEvent (SWT.PreEvent, event);
-		}
+		sendJDKInternalEvent (SWT.PreEvent, eventType);
 	}
 }
 
@@ -5813,11 +5869,7 @@ void sendPostEvent (int eventType) {
 	if (eventType != SWT.PreEvent && eventType != SWT.PostEvent
 			&& eventType != SWT.PreExternalEventDispatch
 			&& eventType != SWT.PostExternalEventDispatch) {
-		if (eventTable != null && eventTable.hooks (SWT.PostEvent)) {
-			Event event = new Event ();
-			event.detail = eventType;
-			sendEvent (SWT.PostEvent, event);
-		}
+		sendJDKInternalEvent (SWT.PostEvent, eventType);
 	}
 }
 
@@ -5827,9 +5879,7 @@ void sendPostEvent (int eventType) {
  * @noreference This method is not intended to be referenced by clients.
  */
 public void sendPreExternalEventDispatchEvent () {
-	if (eventTable != null && eventTable.hooks (SWT.PreExternalEventDispatch)) {
-		sendEvent (SWT.PreExternalEventDispatch, null);
-	}
+	sendJDKInternalEvent (SWT.PreExternalEventDispatch);
 }
 
 /**
@@ -5838,9 +5888,7 @@ public void sendPreExternalEventDispatchEvent () {
  * @noreference This method is not intended to be referenced by clients.
  */
 public void sendPostExternalEventDispatchEvent () {
-	if (eventTable != null && eventTable.hooks (SWT.PostExternalEventDispatch)) {
-		sendEvent (SWT.PostExternalEventDispatch, null);
-	}
+	sendJDKInternalEvent (SWT.PostExternalEventDispatch);
 }
 
 void setCurrentCaret (Caret caret) {
@@ -6193,5 +6241,9 @@ static int _getDeviceZoom (long monitor_num) {
 	int scale = GDK.gdk_monitor_get_scale_factor(monitor);
 	dpi = dpi * scale;
 	return DPIUtil.mapDPIToZoom (dpi);
+}
+
+static boolean isActivateShellOnForceFocus() {
+	return "true".equals(System.getProperty("org.eclipse.swt.internal.activateShellOnForceFocus", "true")); //$NON-NLS-1$
 }
 }

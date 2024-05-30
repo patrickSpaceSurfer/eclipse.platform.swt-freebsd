@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corporation and others.
+ * Copyright (c) 2000, 2022 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -336,17 +336,14 @@ abstract class Tab {
 		});
 		Control [] children = styleGroup.getChildren ();
 		for (Control child : children) {
-			if (child instanceof Button) {
-				Button button = (Button) child;
+			if (child instanceof Button button) {
 				button.addSelectionListener (selectionListener);
 			} else {
-				if (child instanceof Composite) {
+				if (child instanceof Composite composite) {
 					/* Look down one more level of children in the style group. */
-					Composite composite = (Composite) child;
 					Control [] grandchildren = composite.getChildren ();
 					for (Control grandchild : grandchildren) {
-						if (grandchild instanceof Button) {
-							Button button = (Button) grandchild;
+						if (grandchild instanceof Button button) {
 							button.addSelectionListener (selectionListener);
 						}
 					}
@@ -1505,7 +1502,7 @@ abstract class Tab {
 	 */
 	void hookListeners (Widget widget) {
 		if (logging) {
-			Listener listener = event -> log (event);
+			Listener listener = this::log;
 			for (int i = 0; i < EVENT_INFO.length; i++) {
 				if (eventsFilter [i]) {
 					widget.addListener (EVENT_INFO[i].type, listener);

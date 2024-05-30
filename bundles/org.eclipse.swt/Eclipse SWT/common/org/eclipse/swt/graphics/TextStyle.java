@@ -146,7 +146,6 @@ public class TextStyle {
 	/**
 	 * the data. An user data field. It can be used to hold the HREF when the range
 	 * is used as a link or the embed object when the range is used with <code>GlyphMetrics</code>.
-	 * <p>
 	 *
 	 * @since 3.5
 	 */
@@ -217,8 +216,7 @@ public TextStyle (TextStyle style) {
 public boolean equals(Object object) {
 	if (object == this) return true;
 	if (object == null) return false;
-	if (!(object instanceof TextStyle)) return false;
-	TextStyle style = (TextStyle)object;
+	if (!(object instanceof TextStyle style)) return false;
 	if (foreground != null) {
 		if (!foreground.equals(style.foreground)) return false;
 	} else if (style.foreground != null) return false;

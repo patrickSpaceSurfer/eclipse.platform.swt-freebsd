@@ -179,7 +179,7 @@ Rectangle getBoundsInPixels () {
  * Returns the control that is used to fill the client area of
  * the tab folder when the user selects the tab item.  If no
  * control has been set, return <code>null</code>.
- * <p>
+ *
  * @return the control
  *
  * @exception SWTException <ul>
@@ -287,7 +287,7 @@ void releaseParent () {
 /**
  * Sets the control that is used to fill the client area of
  * the tab folder when the user selects the tab item.
- * <p>
+ *
  * @param control the new control (or null)
  *
  * @exception IllegalArgumentException <ul>
@@ -463,7 +463,6 @@ void setOrientation (boolean create) {
  *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
  *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
  * </ul>
- *
  */
 @Override
 public void setText (String string) {

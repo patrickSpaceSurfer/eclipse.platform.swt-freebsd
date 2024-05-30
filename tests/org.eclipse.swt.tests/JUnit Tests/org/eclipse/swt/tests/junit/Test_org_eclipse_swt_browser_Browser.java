@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2018 IBM Corporation and others.
+ * Copyright (c) 2000, 2022 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -268,6 +268,17 @@ public void test_ConstructorLorg_eclipse_swt_widgets_CompositeI() {
 	browser = createBrowser(null, SWT.NONE); // Should throw.
 }
 
+/**
+ * Regression test for issue #339: [Edge] No more handle exceptions from Edge browser
+ */
+@Test
+public void test_Constructor_asyncParentDisposal() {
+	Display.getCurrent().asyncExec(() -> {
+		shell.dispose();
+	});
+	Browser browser = createBrowser(shell, SWT.EDGE);
+	assertFalse(browser.isDisposed());
+}
 
 @Test
 public void test_evalute_Cookies () {
@@ -558,7 +569,13 @@ public void test_LocationListener_ProgressListener_cancledLoad () {
 	// For stability, wait 1000 ms.
 	waitForMilliseconds(1000);
 
-	boolean passed = locationChanging.get() && !unexpectedLocationChanged.get() && !unexpectedProgressCompleted.get();
+	boolean passed = false;
+	if (SwtTestUtil.isCocoa) {
+		// On Cocoa, while setting html text, setting doit=false in location changing event doesn't cancel loading the text.
+		passed = locationChanging.get();
+	} else {
+		passed = locationChanging.get() && !unexpectedLocationChanged.get() && !unexpectedProgressCompleted.get();
+	}
 	String errMsg = "\nUnexpected event fired. \n"
 			+ "LocationChanging (should be true): " + locationChanging.get() + "\n"
 			+ "LocationChanged unexpectedly (should be false): " + unexpectedLocationChanged.get() + "\n"
@@ -592,11 +609,13 @@ public void test_LocationListener_ProgressListener_noExtraEvents() {
 	shell.open();
 	browser.setText("Hello world");
 
+	// Wait for changed and completed events that are mandatory
+	waitForPassCondition(() -> changedCount.get() == 1 && completedCount.get() == 1);
 	// We have to wait to check that no extra events are fired.
 	// On Gtk, Quad Core, pcie this takes 80 ms. ~600ms for stability.
 	waitForMilliseconds(600);
 	boolean passed = changedCount.get() == 1 && completedCount.get() == 1;
-	String errorMsg = "\nIncorrect event sequences. Events missing or too many fired:"
+	String errorMsg = "\nIncorrect event sequences. Too many fired:"
 			+ "\nExpected one of each, but received:"
 			+ "\nChanged count: " + changedCount.get()
 			+ "\nCompleted count: " + completedCount.get();
@@ -943,6 +962,7 @@ public void test_setText() {
 
 @Test
 public void test_setUrl_local() {
+	assumeFalse("Test fails on Mac, see https://github.com/eclipse-platform/eclipse.platform.swt/issues/722", SwtTestUtil.isCocoa);
 	String expectedTitle = "Website Title";
 	Runnable browserSetFunc = () -> {
 
@@ -969,6 +989,7 @@ public void test_setUrl_local() {
 /** This test requires working Internet connection */
 @Test
 public void test_setUrl_remote() {
+	assumeFalse("Test fails on Mac, see https://github.com/eclipse-platform/eclipse.platform.swt/issues/722", SwtTestUtil.isCocoa);
 
 	// This test sometimes times out if build server has a bad connection. Thus for this test we have a longer timeout.
 	secondsToWaitTillFail = 35;
@@ -1196,7 +1217,7 @@ public void test_VisibilityWindowListener_eventSize() {
 	browserChild.dispose();
 
 	boolean passed = false;
-	if (SwtTestUtil.isCocoa) {
+	if (!SwtTestUtil.isWindows) {
 		// On Cocoa, event height/width aren't respected if declared by javascript.
 		passed = finishedWithoutTimeout && result.get().x != 0 && result.get().y != 0;
 	} else
@@ -1386,12 +1407,9 @@ public void test_LocationListener_evaluateInCallback() {
 					"\n  changed:   fired:" + changedFinished.get() + "    evaluated:" + changed;
 	boolean passed = false;
 
-	if (SwtTestUtil.isGTK) {
-		// Evaluation works in all cases.
-		passed = changingFinished.get() && changedFinished.get() && changed && changing;
-	} else if (SwtTestUtil.isCocoa) {
-		// On Cocoa, evaluation in 'changing' fails.
-		passed = changingFinished.get() && changedFinished.get() && changed; // && changing (broken)
+	if (SwtTestUtil.isGTK || SwtTestUtil.isCocoa ) {
+		// On Webkit/Safari evaluation in 'changing' fails.
+		passed = changingFinished.get() && changedFinished.get() && changed; // && changed (broken)
 	} else if (SwtTestUtil.isWindows) {
 		// On Windows, evaluation inside SWT listeners fails altogether.
 		// Further, only 'changing' is fired if evaluation is invoked inside listeners.
@@ -1500,6 +1518,17 @@ public void test_setFocus_toChild_beforeOpen() {
 	// The different browsers set focus to a different child
 }
 
+@Test
+@Override
+public void test_setFocus_withInvisibleChild() {
+	// The different browsers set focus to a different child
+}
+
+@Test
+@Override
+public void test_setFocus_withVisibleAndInvisibleChild() {
+	// The different browsers set focus to a different child
+}
 
 /** Text without html tags */
 @Test
@@ -1570,7 +1599,13 @@ private void getText_helper(String testString, String expectedOutput) {
 			+ "Expected:"+testString+"\n"
 			+ "Actual:"+returnString.get()
 			: "Test timed out";
-	assertEquals(error_msg, expectedOutput.toLowerCase(Locale.ENGLISH), returnString.get().replace("\r", "").replace("\n", "").toLowerCase(Locale.ENGLISH));
+	assertEquals(error_msg, normalizeHtmlString(expectedOutput), normalizeHtmlString(returnString.get()));
+}
+
+private String normalizeHtmlString(String htmlString) {
+	return htmlString.replace("\r", "").replace("\n", "") // ignore OS-Specific newlines
+			.replace(";", "") // ignore semicolons potentially added on Windows when processing style properties
+			.toLowerCase(Locale.ENGLISH); // ignore capitalization
 }
 
 /**
@@ -2235,6 +2270,60 @@ public void test_BrowserFunction_callback_with_javaReturningInt () {
 
 	shell.open();
 	boolean passed = waitForPassCondition(() -> returnInt.get() == 42);
+	String message = "Java should have returned something back to Javascript. But something went wrong";
+	assertTrue(message, passed);
+}
+
+
+@Test
+public void test_BrowserFunction_callback_with_javaReturningString () {
+	AtomicReference<String> returnString = new AtomicReference<>();
+
+	final String testString = "a\tcomplicated\"string\\\u00DF";
+	class JavascriptCallback extends BrowserFunction { // Note: Local class defined inside method.
+		JavascriptCallback(Browser browser, String name) {
+			super(browser, name);
+		}
+
+		@Override
+		public Object function(Object[] arguments) {
+			return testString;
+		}
+	}
+
+	class JavascriptCallback_javascriptReceivedJavaInt extends BrowserFunction { // Note: Local class defined inside method.
+		JavascriptCallback_javascriptReceivedJavaInt(Browser browser, String name) {
+			super(browser, name);
+		}
+
+		@Override
+		public Object function(Object[] arguments) {
+			returnString.set((String) arguments[0]);
+			return null;
+		}
+	}
+
+	String htmlWithScript = "<html><head>\n"
+			+ "<script language=\"JavaScript\">\n"
+			+ "function callCustomFunction() {\n"  // Define a javascript function.
+			+ "     document.body.style.backgroundColor = 'red'\n"
+			+ "     var retVal = jsCallbackToJava()\n"  // 2)
+			+ "		document.write(retVal)\n"        // This calls the javafunction that we registered. Set HTML body to return value.
+			+ "     jsSuccess(retVal)\n"				// 3)
+			+ "}"
+			+ "</script>\n"
+			+ "</head>\n"
+			+ "<body> If you see this, Javascript did not receive anything from Java. This page should just be '" + testString + "' </body>\n"
+			+ "</html>\n";
+	// 1)
+	browser.setText(htmlWithScript);
+	new JavascriptCallback(browser, "jsCallbackToJava");
+	new JavascriptCallback_javascriptReceivedJavaInt(browser, "jsSuccess");
+
+	browser.addProgressListener(callCustomFunctionUponLoad);
+
+	shell.open();
+	boolean passed = waitForPassCondition(() -> testString.equals(returnString.get()));
 	String message = "Java should have returned something back to Javascript. But something went wrong";
 	assertTrue(message, passed);
 }

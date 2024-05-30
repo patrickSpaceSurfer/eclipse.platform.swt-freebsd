@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.util.function.BooleanSupplier;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.DisposeListener;
@@ -235,29 +234,12 @@ protected String getClassName() {
 	return clazz;
 }
 
-protected void processEvents(int timeoutMs, BooleanSupplier breakCondition) throws InterruptedException {
-	if (breakCondition == null) {
-		breakCondition = () -> false;
-	}
-	long targetTimestamp = System.currentTimeMillis() + timeoutMs;
-	while (!breakCondition.getAsBoolean()) {
-		if (!shell.getDisplay().readAndDispatch()) {
-			if (System.currentTimeMillis() < targetTimestamp) {
-				Thread.sleep(50);
-			} else {
-				return;
-			}
-		}
-	}
-}
-
 /**
  * Renders the shell and process events for duration.
  * Convenience method for debugging tests, ⚠️ should not be
  * called for headless tests!
  * @param shell The shell to render.
  * @param durationMs duration in milliseconds. Method exits after duration.
- * @throws InterruptedException
  */
 protected void render(Shell shell, int durationMs) throws InterruptedException {
 	long timestamp = System.currentTimeMillis();

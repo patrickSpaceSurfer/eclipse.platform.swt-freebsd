@@ -89,7 +89,6 @@ final public class OleFrame extends Composite
  * @exception SWTException <ul>
  *     <li>ERROR_THREAD_INVALID_ACCESS when called from the wrong thread
  * </ul>
- *
  */
 public OleFrame(Composite parent, int style) {
 	super(parent, style);
@@ -382,7 +381,6 @@ private int GetBorder(long lprectBorder) {
  *
  * @return the application menu items that will appear in the Container location when an OLE Document
  *         is in-place activated.
- *
  */
 public MenuItem[] getContainerMenus(){
 	return containerMenuItems;
@@ -400,7 +398,6 @@ public MenuItem[] getContainerMenus(){
  *
  * @return the application menu items that will appear in the File location when an OLE Document
  *         is in-place activated.
- *
  */
 public MenuItem[] getFileMenus(){
 	return fileMenuItems;
@@ -440,7 +437,6 @@ private int GetWindow(long phwnd) {
  *
  * @return the application menu items that will appear in the Window location when an OLE Document
  *         is in-place activated.
- *
  */
 public MenuItem[] getWindowMenus(){
 	return windowMenuItems;
@@ -567,10 +563,12 @@ private void onDispose(Event e) {
 	removeListener(SWT.Move, listener);
 }
 void onFocusIn(Event e) {
-	if (lastActivatedMenuHandle != newMenuHandle)
+	if (lastActivatedMenuHandle != newMenuHandle && currentdoc != null) {
 		currentdoc.doVerb(OLE.OLEIVERB_SHOW);
-	if (OS.GetMenu(shellHandle) != newMenuHandle)
+	}
+	if (OS.GetMenu(shellHandle) != newMenuHandle) {
 		OS.SetMenu(shellHandle, newMenuHandle);
+	}
 }
 void onFocusOut(Event e) {
 	Control control = getDisplay().getFocusControl();

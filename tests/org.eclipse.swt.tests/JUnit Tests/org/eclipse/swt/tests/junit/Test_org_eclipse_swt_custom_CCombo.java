@@ -30,6 +30,7 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Text;
 import org.junit.Before;
@@ -48,6 +49,11 @@ public void setUp() {
 	super.setUp();
 	ccombo = new CCombo(shell, 0);
 	setWidget(ccombo);
+}
+
+@Override
+protected Composite getElementExpectedToHaveFocusAfterSetFocusOnParent(Composite visibleChild) {
+	return visibleChild.getParent();
 }
 
 @Override
@@ -116,7 +122,7 @@ public void test_getChildren() {
 
 @Test
 @Override
-public void test_isFocusControl() throws InterruptedException {
+public void test_isFocusControl() {
 	if (SwtTestUtil.isGTK) {
 		// TODO forceFocus returns false, while isFocusControl returns true
 		assertFalse(control.isFocusControl());
@@ -191,7 +197,7 @@ public void test_setFocus() {
 		assertFalse("Expect false wehn not visible and not enabled", ccombo.setFocus());
 		ccombo.setEnabled(true);
 		ccombo.setVisible(true);
-		processEvents(0, null);
+		SwtTestUtil.processEvents();
 		if(ccombo.isFocusControl())
 			assertTrue("Set focus error", ccombo.setFocus());
 
@@ -199,7 +205,7 @@ public void test_setFocus() {
 			ccombo.setEnabled(true);
 			ccombo.setVisible(true);
 			ccombo.setFocus();
-			processEvents(0, null);
+			SwtTestUtil.processEvents(100, () -> ccombo.isFocusControl());
 			assertTrue(ccombo.isFocusControl());
 			Control focusControl = ccombo.getDisplay().getFocusControl();
 			assertTrue(focusControl instanceof Text);

@@ -81,10 +81,6 @@ if [ "${OS}" = "" ]; then
 	OS=`uname -s`
 fi
 case $OS in
-	"Windows_NT")
-		SWT_OS=win32
-		MAKEFILE=make_win32.mak
-		;;
 	*)
 		SWT_OS=`uname -s | tr '[:upper:]' '[:lower:]'`
 		MAKEFILE=make_linux.mak
@@ -128,17 +124,6 @@ case $SWT_OS.$SWT_ARCH in
 		if [ "${CC}" = "" ]; then
 			export CC=gcc
 		fi
-		if [ "${JAVA_HOME}" = "" ]; then
-			# Cross-platform method of finding JAVA_HOME.
-			# Tested on Fedora 24 and Ubuntu 16
-			DYNAMIC_JAVA_HOME=`readlink -f /usr/bin/java | sed "s:jre/::" | sed "s:bin/java::"`
-			if [ -e "${DYNAMIC_JAVA_HOME}include/jni.h" ]; then
-				func_echo_plus "JAVA_HOME not set, but jni.h found, dynamically configured to $DYNAMIC_JAVA_HOME"
-				export JAVA_HOME="$DYNAMIC_JAVA_HOME"
-			else
-				func_echo_error "JAVA_HOME not set and jni.h could not be located. You might get a compile error about include 'jni.h'. You should install 'java-*-openjdk-devel' package or if you have it installed already, find jni.h and  set JAVA_HOME manually to base of 'include' folder"
-			fi
-		fi
 		if [ "${PKG_CONFIG_PATH}" = "" ]; then
 			export PKG_CONFIG_PATH="/usr/lib64/pkgconfig"
 		fi
@@ -147,9 +132,6 @@ case $SWT_OS.$SWT_ARCH in
 		if [ "${CC}" = "" ]; then
 			export CC=gcc
 		fi
-		if [ "${JAVA_HOME}" = "" ]; then
-			export JAVA_HOME=`readlink -f /usr/bin/java | sed "s:jre/bin/java::"`
-		fi
 		if [ "${PKG_CONFIG_PATH}" = "" ]; then
 			export PKG_CONFIG_PATH="/usr/lib64/pkgconfig/"
 		fi
@@ -157,9 +139,6 @@ case $SWT_OS.$SWT_ARCH in
 	"linux.loongarch64")
 		if [ "${CC}" = "" ]; then
 			export CC=gcc
-		fi
-		if [ "${JAVA_HOME}" = "" ]; then
-			export JAVA_HOME=`readlink -f /usr/bin/java | sed "s:jre/bin/java::"`
 		fi
 		if [ "${PKG_CONFIG_PATH}" = "" ]; then
 			export PKG_CONFIG_PATH="/usr/lib64/pkgconfig/"
@@ -196,6 +175,12 @@ else
 	func_echo_error "Cairo not found: Advanced graphics support using cairo will not be compiled."
 fi
 
+if [ -z ${SWT_JAVA_HOME} ] || [ ! -f "${SWT_JAVA_HOME}/include/jni.h" ]; then
+	func_echo_error "SWT_JAVA_HOME not set and jni.h could not be located. You might get a compile error about include 'jni.h'. You should install 'java-*-openjdk-devel' package or if you have it installed already, find jni.h and  set SWT_JAVA_HOME manually to base of 'include' folder"
+else
+	func_echo_plus "jni.h found"
+fi
+
 # Find AWT if available
 if [ ${SWT_OS} = 'win32' ]; then
 	AWT_LIB_EXPR="jawt.dll"
@@ -204,14 +189,14 @@ else
 fi
 
 if [ -z "${AWT_LIB_PATH}" ]; then
-	if [ -f ${JAVA_HOME}/jre/lib/${AWT_ARCH}/${AWT_LIB_EXPR} ]; then
-		AWT_LIB_PATH=${JAVA_HOME}/jre/lib/${AWT_ARCH}
+	if [ -f ${SWT_JAVA_HOME}/jre/lib/${AWT_ARCH}/${AWT_LIB_EXPR} ]; then
+		AWT_LIB_PATH=${SWT_JAVA_HOME}/jre/lib/${AWT_ARCH}
 		export AWT_LIB_PATH
-	elif [ -f ${JAVA_HOME}/lib/${AWT_LIB_EXPR} ]; then
-		AWT_LIB_PATH=${JAVA_HOME}/lib
+	elif [ -f ${SWT_JAVA_HOME}/lib/${AWT_LIB_EXPR} ]; then
+		AWT_LIB_PATH=${SWT_JAVA_HOME}/lib
 		export AWT_LIB_PATH
 	else
-		AWT_LIB_PATH=${JAVA_HOME}/jre/bin
+		AWT_LIB_PATH=${SWT_JAVA_HOME}/jre/bin
 		export AWT_LIB_PATH
 	fi
 fi
@@ -241,7 +226,7 @@ for i in "$@"; do  # loop over all input paramaters
 		func_echo_error "ERROR: 'install' was passed in as paramater, but OUTPUT_DIR :"
 		func_echo_error "(${OUTPUT_DIR}) "
 		func_echo_error "is not a valid directory."
-		func_echo_error "1) Maybe you forgot to checkout SWT binaries? See: https://git.eclipse.org/c/platform/eclipse.platform.swt.binaries.git/"
+		func_echo_error "1) Maybe you forgot to checkout SWT binaries? See: https://github.com/eclipse-platform/eclipse.platform.swt.binaries/"
 		func_echo_error "2) SWT and SWT binary git repos have to be in the same folder, (usually ~/git/...). Maybe you put them in different folders?"
 		func_echo_error "Exit with failure"
 		exit 1

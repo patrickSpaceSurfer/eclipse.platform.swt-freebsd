@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2021 IBM Corporation and others.
+ * Copyright (c) 2000, 2022 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -14,6 +14,7 @@
 package org.eclipse.swt.tests.junit;
 
 
+import static org.eclipse.swt.tests.junit.SwtTestUtil.hasPixel;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -50,6 +51,7 @@ import org.eclipse.swt.custom.StyledTextContent;
 import org.eclipse.swt.custom.TextChangeListener;
 import org.eclipse.swt.custom.VerifyKeyListener;
 import org.eclipse.swt.dnd.Clipboard;
+import org.eclipse.swt.dnd.HTMLTransfer;
 import org.eclipse.swt.dnd.RTFTransfer;
 import org.eclipse.swt.dnd.TextTransfer;
 import org.eclipse.swt.dnd.Transfer;
@@ -180,7 +182,6 @@ public void test_ConstructorLorg_eclipse_swt_widgets_CompositeI(){
 @Test
 public void test_addExtendedModifyListenerLorg_eclipse_swt_custom_ExtendedModifyListener() {
 	final String line = "Line1";
-	boolean exceptionThrown = false;
 	ExtendedModifyListener listener = event -> {
 		listenerCalled = true;
 		assertEquals("ExtendedModify event data invalid", 0, event.start);
@@ -188,13 +189,8 @@ public void test_addExtendedModifyListenerLorg_eclipse_swt_custom_ExtendedModify
 		assertEquals("ExtendedModify event data invalid", "", event.replacedText);
 	};
 
-	try {
-		text.addExtendedModifyListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, ()->
+		text.addExtendedModifyListener(null));
 
 	// test whether all content modifying API methods send an ExtendedModify event
 	text.addExtendedModifyListener(listener);
@@ -259,16 +255,10 @@ public void test_setKeyBindingII(){
 @Test
 public void test_addBidiSegmentListenerLorg_eclipse_swt_custom_BidiSegmentListener() {
 	String line = "Line1";
-	boolean exceptionThrown = false;
 	BidiSegmentListener listener = event -> listenerCalled = true;
 
-	try {
-		text.addBidiSegmentListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows( IllegalArgumentException.class, ()->
+		text.addBidiSegmentListener(null));
 
 	listenerCalled = false;
 	text.setText(line);
@@ -277,8 +267,7 @@ public void test_addBidiSegmentListenerLorg_eclipse_swt_custom_BidiSegmentListen
 	text.getLocationAtOffset(0);
 	if (SwtTestUtil.isBidi()) {
 		assertTrue("Listener not called", listenerCalled);
-	}
-	else {
+	} else {
 		assertFalse("Listener called when it shouldn't be", listenerCalled);
 	}
 	listenerCalled = false;
@@ -316,16 +305,10 @@ public void test_removeCaretListener_CaretListenerNotCalled() {
 @Test
 public void test_addLineBackgroundListenerLorg_eclipse_swt_custom_LineBackgroundListener() {
 	String line = "Line1";
-	boolean exceptionThrown = false;
 	LineBackgroundListener listener = event -> listenerCalled = true;
 
-	try {
-		text.addLineBackgroundListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, ()->
+		text.addLineBackgroundListener(null));
 
 	listenerCalled = false;
 	text.setText(line);
@@ -347,16 +330,9 @@ public void test_addLineBackgroundListenerLorg_eclipse_swt_custom_LineBackground
 @Test
 public void test_addLineStyleListenerLorg_eclipse_swt_custom_LineStyleListener() {
 	String line = "Line1";
-	boolean exceptionThrown = false;
 	LineStyleListener listener = event -> listenerCalled = true;
 
-	try {
-		text.addLineStyleListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.addLineStyleListener(null));
 
 	listenerCalled = false;
 	text.setText(line);
@@ -378,16 +354,9 @@ public void test_addLineStyleListenerLorg_eclipse_swt_custom_LineStyleListener()
 @Test
 public void test_addModifyListenerLorg_eclipse_swt_events_ModifyListener() {
 	String line = "Line1";
-	boolean exceptionThrown = false;
 	ModifyListener listener = event -> listenerCalled = true;
 
-	try {
-		text.addModifyListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.addModifyListener(null));
 
 	// test whether all content modifying API methods send a Modify event
 	text.addModifyListener(listener);
@@ -418,7 +387,6 @@ public void test_addModifyListenerLorg_eclipse_swt_events_ModifyListener() {
 @Test
 public void test_addSelectionListenerLorg_eclipse_swt_events_SelectionListener() {
 	String line = "Line1";
-	boolean exceptionThrown = false;
 	SelectionListener listener = new SelectionListener() {
 		@Override
 		public void widgetSelected(SelectionEvent event) {
@@ -430,13 +398,7 @@ public void test_addSelectionListenerLorg_eclipse_swt_events_SelectionListener()
 		}
 	};
 
-	try {
-		text.addSelectionListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.addSelectionListener(null));
 
 	text.setText(line);
 	listenerCalled = false;
@@ -497,17 +459,9 @@ public void test_addSelectionListenerWidgetDefaultSelectedAdapterLorg_eclipse_sw
 
 @Test
 public void test_addVerifyKeyListenerLorg_eclipse_swt_custom_VerifyKeyListener() {
-	boolean exceptionThrown = false;
-	VerifyKeyListener listener = event -> {
-	};
+	VerifyKeyListener listener = event -> {};
 
-	try {
-		text.addVerifyKeyListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.addVerifyKeyListener(null));
 
 	// only test whether listener can be added and removed.
 	// can't test listener because VerifyKey is user driven.
@@ -520,7 +474,6 @@ public void test_addVerifyListenerLorg_eclipse_swt_events_VerifyListener() {
 	final String line = "Line1";
 	final String newLine = "NewLine1";
 	final int textLength;
-	boolean exceptionThrown = false;
 	VerifyListener listener = event -> {
 		listenerCalled = true;
 		assertEquals("Verify event data invalid", 0, event.start);
@@ -531,13 +484,7 @@ public void test_addVerifyListenerLorg_eclipse_swt_events_VerifyListener() {
 		event.text = newLine;
 	};
 
-	try {
-		text.addVerifyListener(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("Expected exception not thrown", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.addVerifyListener(null));
 
 	// test whether all content modifying API sends a Verify event
 	text.addVerifyListener(listener);
@@ -665,20 +612,12 @@ private class RecordingMovementListener implements MovementListener {
 
 @Test
 public void test_appendLjava_lang_String() {
-	boolean exceptionThrown;
 	String line = "Line1";
 
 	text.append(line);
 	assertEquals("append to empty text", line, text.getText());
 
-	exceptionThrown = false;
-	try {
-		text.append(null);
-	}
-	catch (IllegalArgumentException exception) {
-		exceptionThrown = true;
-	}
-	assertTrue("append null string", exceptionThrown);
+	assertThrows("append null string", IllegalArgumentException.class, () -> text.append(null));
 
 	text.append("");
 	assertEquals("append empty string", line, text.getText());
@@ -793,6 +732,65 @@ public void test_copy() {
 
 	rtfCopy();
 	clipboard.dispose();
+}
+
+private static StyleRange getRangeForText(String str, String subStr) {
+	int index = str.indexOf(subStr);
+	if (index != -1) {
+		return new StyleRange(index, subStr.length(), null, null);
+	}
+	return null;
+}
+
+@Test
+public void test_clipboardWithHtml() {
+	String content = "This is red, background yellow, bold, italic, underscore, big, small, super, sub.";
+	text.setText(content);
+
+	StyleRange range;
+	range = getRangeForText(content, "red");
+	range.foreground = new Color(0xff, 0x00, 0x00);
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "yellow");
+	range.background = new Color(0xff, 0xff, 0x00);
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "bold");
+	range.fontStyle = SWT.BOLD;
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "italic");
+	range.fontStyle = SWT.ITALIC;
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "underscore");
+	range.underlineStyle = SWT.UNDERLINE_SINGLE;
+	range.underline = true;
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "big");
+	Font fontArial16 = new Font(Display.getCurrent(), "Arial", 16, 0);
+	range.font = fontArial16;
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "small");
+	Font fontArial8 = new Font(Display.getCurrent(), "Arial", 8, SWT.NONE);
+	range.font = fontArial8;
+	text.setStyleRange(range);
+
+	range = getRangeForText(content, "super");
+	range.rise = 12;
+	text.setStyleRange(range);
+	range = getRangeForText(content, "sub");
+	range.rise = -12;
+	text.setStyleRange(range);
+
+	text.selectAll();
+	text.copy();
+
+	fontArial16.dispose();
+	fontArial8.dispose();
 }
 
 @Test
@@ -1286,31 +1284,19 @@ public void test_getLocationAtOffsetI(){
 	final int XINSET = isBidiCaret() ? 2 : 0;
 
 	assertEquals(":a:", new Point(XINSET, 0), text.getLocationAtOffset(0));
-	try {
-		text.getLocationAtOffset(-1);
-		fail("No exception thrown for offset == -1");
-	}
-	catch (IllegalArgumentException e) {
-	}
+	assertThrows("No exception thrown for offset == -1", IllegalArgumentException.class, () ->
+		text.getLocationAtOffset(-1));
 
-	try {
-		text.getLocationAtOffset(100);
-		fail("No exception thrown for illegal offset argument");
-	}
-	catch (IllegalArgumentException e) {
-	}
+	assertThrows("No exception thrown for illegal offset argument", IllegalArgumentException.class, () ->
+		text.getLocationAtOffset(100));
 
 	text.setText("Line0\r\nLine1");
 	assertTrue(":d:", text.getLocationAtOffset(4).x > 0 && text.getLocationAtOffset(4).y == 0);
 	assertTrue(":e:", text.getLocationAtOffset(6).x > 0 && text.getLocationAtOffset(6).y == 0);
 	// x location will == StyledText x inset on bidi platforms
 	assertTrue(":f:", text.getLocationAtOffset(7).x == XINSET && text.getLocationAtOffset(7).y > 0);
-	try {
-		text.getLocationAtOffset(13);
-		fail("No exception thrown for illegal offset argument");
-	}
-	catch (IllegalArgumentException e) {
-	}
+	assertThrows("No exception thrown for illegal offset argument", IllegalArgumentException.class, () ->
+		text.getLocationAtOffset(13));
 
 	text.setTopIndex(1);
 	assertTrue(":h:", text.getLocationAtOffset(4).x > 0 && text.getLocationAtOffset(4).y < 0);
@@ -1323,39 +1309,16 @@ public void test_getLocationAtOffsetI(){
 }
 @Test
 public void test_getOffsetAtLineI() {
-	boolean exceptionThrown = false;
-
 	assertEquals(":a:", 0, text.getOffsetAtLine(0));
-	try {
-		text.getOffsetAtLine(-1);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":b:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLine(-1));
 
-	try {
-		text.getOffsetAtLine(100);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":c:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLine(100));
 
 	text.setText("Line0\r\n");
 	assertEquals(":d:", 0, text.getOffsetAtLine(0));
 	assertEquals(":e:", 7, text.getOffsetAtLine(1));
 
-	try {
-		text.getOffsetAtLine(2);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":f:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLine(2));
 
 	text.setText("");
 	assertEquals(":g:", 0, text.getOffsetAtLine(0));
@@ -1363,28 +1326,13 @@ public void test_getOffsetAtLineI() {
 @SuppressWarnings("deprecation")
 @Test
 public void test_getOffsetAtLocationLorg_eclipse_swt_graphics_Point() {
-	boolean exceptionThrown = false;
 	Point location;
 	final int XINSET = isBidiCaret() ? 2 : 0;
 
 	assertEquals(":a:", 0, text.getOffsetAtLocation(new Point(XINSET, 0)));
-	try {
-		text.getOffsetAtLocation(new Point(-1, 0));
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":b:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLocation(new Point(-1, 0)));
 
-	try {
-		text.getOffsetAtLocation(new Point(0, -1));
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":c:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLocation(new Point(0, -1)));
 
 	text.setText("Line0\r\nLine1");
 	location = text.getLocationAtOffset(5);
@@ -1392,23 +1340,9 @@ public void test_getOffsetAtLocationLorg_eclipse_swt_graphics_Point() {
 	assertEquals(":e:", 5, text.getOffsetAtLocation(new Point(location.x - 1, 0)));
 	location = text.getLocationAtOffset(7);
 	assertEquals(":f:", 7, text.getOffsetAtLocation(location));
-	try {
-		text.getOffsetAtLocation(new Point(100, 0));
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":g:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLocation(new Point(100, 0)));
 
-	try {
-		text.getOffsetAtLocation(new Point(100, 50));
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":h:", exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.getOffsetAtLocation(new Point(100, 50)));
 
 	text.setTopIndex(1);
 	assertEquals(":i:", 0, text.getOffsetAtLocation(new Point(XINSET, -5)));
@@ -1841,35 +1775,14 @@ public void test_getStyleRangeAtOffsetI() {
 	int styleStart = 0;
 	int styleLength = 5;
 	int i;
-	boolean exceptionThrown = false;
 	StyleRange style = new StyleRange(styleStart, styleLength, getColor(BLUE), getColor(RED), SWT.BOLD);
 
-	try {
-		text.getStyleRangeAtOffset(0);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("offset out of range no text", exceptionThrown);
+	assertThrows("offset out of range no text", IllegalArgumentException.class, () -> text.getStyleRangeAtOffset(0));
 
 	text.setText(line);
-	exceptionThrown = false;
-	try {
-		text.getStyleRangeAtOffset(-1);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("offset out of range negative", exceptionThrown);
-
-	exceptionThrown = false;
-	try {
-		text.getStyleRangeAtOffset(line.length());
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue("offset out of range positive", exceptionThrown);
+	assertThrows("offset out of range negative", IllegalArgumentException.class, () -> text.getStyleRangeAtOffset(-1));
+	assertThrows("offset out of range positive", IllegalArgumentException.class,
+			() -> text.getStyleRangeAtOffset(line.length()));
 
 	text.setStyleRange(style);
 	style.length = 1;
@@ -1877,7 +1790,7 @@ public void test_getStyleRangeAtOffsetI() {
 		style.start = i;
 		assertEquals(style, text.getStyleRangeAtOffset(i));
 	}
-	assertEquals(null, text.getStyleRangeAtOffset(i));
+	assertNull(text.getStyleRangeAtOffset(i));
 
 	// test offset at line delimiter
 	style = new StyleRange(5, 2, null, getColor(BLUE), SWT.NORMAL);
@@ -1886,7 +1799,7 @@ public void test_getStyleRangeAtOffsetI() {
 	assertEquals(style, text.getStyleRangeAtOffset(5));
 	style.start = 6;
 	assertEquals(style, text.getStyleRangeAtOffset(6));
-	assertEquals(null, text.getStyleRangeAtOffset(10));
+	assertNull(text.getStyleRangeAtOffset(10));
 }
 @Test
 public void test_getStyleRanges() {
@@ -2002,7 +1915,6 @@ public void test_getText() {
 }
 @Test
 public void test_getTextII() {
-	boolean exceptionThrown;
 	String testText = "Line1\r\nLine2";
 	int invalidRanges[][] = {{-1, 0}, {0, -1}, {-1, -1}, {100, 1}, {100, -1}, {2, testText.length()}, {5, 2}};
 	int ranges[][] = {{0, 1}, {0, 0}, {2, 5}, {7, 11}};
@@ -2010,15 +1922,7 @@ public void test_getTextII() {
 	for (int[] invalidRange : invalidRanges) {
 		int start = invalidRange[0];
 		int end = invalidRange[1];
-
-		exceptionThrown = false;
-		try {
-			text.getText(start, end);
-		}
-		catch (IllegalArgumentException e) {
-			exceptionThrown = true;
-		}
-		assertTrue(":a:", exceptionThrown);
+		assertThrows(IllegalArgumentException.class, () -> text.getText(start, end));
 	}
 	text.setText(testText);
 	for (int i = 0; i < ranges.length; i++) {
@@ -2030,14 +1934,7 @@ public void test_getTextII() {
 		int start = invalidRange[0];
 		int end = invalidRange[1];
 
-		exceptionThrown = false;
-		try {
-			text.getText(start, end);
-		}
-		catch (IllegalArgumentException e) {
-			exceptionThrown = true;
-		}
-		assertTrue(":a:", exceptionThrown);
+		assertThrows(IllegalArgumentException.class, () -> text.getText(start, end));
 	}
 	text.setText("testing");
 	assertEquals(":d:", "t", text.getText(0,0));
@@ -2046,7 +1943,6 @@ public void test_getTextII() {
 }
 @Test
 public void test_getTextRangeII() {
-	boolean exceptionThrown;
 	String testText = "Line1\r\nLine2";
 	int invalidRanges[][] = {{-1, 0}, {0, -1}, {-1, -1}, {100, 1}, {100, -1}, {1, testText.length()}, {5, -1}};
 	int ranges[][] = {{0, 1}, {0, 0}, {5, 1}, {7, 5}, {12, 0}};
@@ -2055,14 +1951,7 @@ public void test_getTextRangeII() {
 		int start = invalidRange[0];
 		int length = invalidRange[1];
 
-		exceptionThrown = false;
-		try {
-			text.getTextRange(start, length);
-		}
-		catch (IllegalArgumentException e) {
-			exceptionThrown = true;
-		}
-		assertTrue(":a:", exceptionThrown);
+		assertThrows(IllegalArgumentException.class, () -> text.getTextRange(start, length));
 	}
 	text.setText(testText);
 	for (int i = 0; i < ranges.length; i++) {
@@ -2074,14 +1963,7 @@ public void test_getTextRangeII() {
 		int start = invalidRange[0];
 		int length = invalidRange[1];
 
-		exceptionThrown = false;
-		try {
-			text.getTextRange(start, length);
-		}
-		catch (IllegalArgumentException e) {
-			exceptionThrown = true;
-		}
-		assertTrue(":a:", exceptionThrown);
+		assertThrows(IllegalArgumentException.class, () -> text.getTextRange(start, length));
 	}
 	text.setText("testing");
 	assertTrue(":d:", text.getTextRange(0,0).isEmpty());
@@ -2158,12 +2040,8 @@ public void test_getWordWrap() {
 @Test
 public void test_insertLjava_lang_String(){
 	String delimiterString = "\n";
-	try {
-		text.insert(null);
-		fail("No exception thrown for string == null");
-	}
-	catch (IllegalArgumentException e) {
-	}
+	assertThrows("No exception thrown for string == null", IllegalArgumentException.class,
+		() -> text.insert(null));
 	assertTrue(":a:", text.getText().isEmpty());
 	text.insert("");
 	assertTrue(":b:", text.getText().isEmpty());
@@ -2476,13 +2354,8 @@ public void test_printLorg_eclipse_swt_printing_Printer() {
 	// if there aren't any printers, don't do this test
 	if (Printer.getDefaultPrinterData() == null) return;
 
-	boolean exceptionThrown = false;
-	try {
-		text.print((Printer) null);
-	} catch (IllegalArgumentException ex) {
-		exceptionThrown = true;
-	}
-	assertTrue("no exception thrown for print(null)", exceptionThrown);
+	assertThrows("no exception thrown for print(null)", IllegalArgumentException.class, () ->
+		text.print((Printer) null));
 
 	Printer printer = new Printer();
 	text.print(printer); // don't run the runnable, to save paper
@@ -2505,53 +2378,19 @@ public void test_redrawIIIIZ() {
 
 @Test
 public void test_redrawRangeIIZ() {
-	boolean exceptionThrown = false;
-
 	text.redrawRange(0, 0, true);
 	text.redrawRange(0, 0, false);
 
-	try {
-		text.redrawRange(0, 1, true);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
+	IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(0, 1, true));
+	assertEquals("Index out of bounds", e.getMessage());
+	e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(0, 1, false));
+	assertEquals("Index out of bounds", e.getMessage());
 
-	exceptionThrown = false;
-	try {
-		text.redrawRange(0, 1, false);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
+	e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(-1, 2, true));
+	assertEquals("Index out of bounds", e.getMessage());
 
-	exceptionThrown = false;
-	try {
-		text.redrawRange(-1, 2, true);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
-
-	exceptionThrown = false;
-	try {
-		text.redrawRange(-1, 2, false);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
+	e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(-1, 2, false));
+	assertEquals("Index out of bounds", e.getMessage());
 
 	text.setText("0123456789");
 	text.redrawRange(0, 0, true);
@@ -2563,27 +2402,11 @@ public void test_redrawRangeIIZ() {
 	text.redrawRange(10, 0, true);
 	text.redrawRange(10, 0, false);
 
-	exceptionThrown = false;
-	try {
-		text.redrawRange(10, 1, true);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
+	e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(10, 1, true));
+	assertEquals("Index out of bounds", e.getMessage());
 
-	exceptionThrown = false;
-	try {
-		text.redrawRange(10, 1, false);
-	}
-	catch (IllegalArgumentException e) {
-		if (e.getMessage().equals("Index out of bounds")) {
-			exceptionThrown = true;
-		}
-	}
-	assertTrue(exceptionThrown);
+	e = assertThrows(IllegalArgumentException.class, () -> text.redrawRange(10, 1, false));
+	assertEquals("Index out of bounds", e.getMessage());
 }
 
 @Test
@@ -3142,7 +2965,6 @@ public void test_replaceTextRangeIILjava_lang_String(){
 	final int selectionLength = 7;
 	final int replaceStart = selectionStart + selectionLength + 1;
 	final int replaceLength = 5;
-	boolean exceptionThrown = false;
 	final String newText = "newline0\n\rnewline1";
 	final int newTextLength = newText.length();
 	class TestSelectionListener extends SelectionAdapter {
@@ -3189,33 +3011,13 @@ public void test_replaceTextRangeIILjava_lang_String(){
 	text.setText(defaultText);
 	// select 2nd line including line break
 	text.setSelectionRange(selectionStart, selectionLength);
-	try {
-		text.replaceTextRange(-1, 0, newText);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":g:", exceptionThrown);
-	exceptionThrown = false;
-	try {
-		text.replaceTextRange(text.getCharCount() + 1, 0, newText);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
+	assertThrows(IllegalArgumentException.class, () -> text.replaceTextRange(-1, 0, newText));
 
-	exceptionThrown = false;
-	try {
-		text.replaceTextRange(0, 0, null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.replaceTextRange(text.getCharCount() + 1, 0, newText));
 
-	assertTrue(":h:", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.replaceTextRange(0, 0, null));
+
 	assertTrue(":i:", text.getSelectionRange().x == selectionStart && text.getSelectionRange().y == selectionLength);
-	exceptionThrown = false;
 
 	// append text
 	// append in empty widget
@@ -3271,21 +3073,9 @@ public void test_replaceTextRangeIILjava_lang_String(){
 	text.setText(defaultText);
 	// select 2nd line including line break
 	text.setSelectionRange(selectionStart, selectionLength);
-	try {
-		text.replaceTextRange(-1, replaceLength, newText);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":v:", exceptionThrown);
-	exceptionThrown = false;
-	try {
-		text.replaceTextRange(text.getCharCount() + 1, replaceLength, newText);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(":w:", exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.replaceTextRange(-1, replaceLength, newText));
+	assertThrows(IllegalArgumentException.class,
+			() -> text.replaceTextRange(text.getCharCount() + 1, replaceLength, newText));
 	assertTrue(":x:", text.getSelectionRange().x == selectionStart && text.getSelectionRange().y == selectionLength);
 	text.removeSelectionListener(selectionListener);
 }
@@ -3361,7 +3151,6 @@ public void test_setCaretOffsetI(){
 
 @Test
 public void test_setContentLorg_eclipse_swt_custom_StyledTextContent() {
-	boolean exceptionThrown;
 	StyledTextContent content = new StyledTextContent() {
 		@Override
 		public void addTextChangeListener(TextChangeListener listener) {
@@ -3407,14 +3196,7 @@ public void test_setContentLorg_eclipse_swt_custom_StyledTextContent() {
 	text.setContent(content);
 	assertEquals(content, text.getContent());
 
-	exceptionThrown = false;
-	try {
-		text.setContent(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.setContent(null));
 }
 
 @Test
@@ -4740,13 +4522,13 @@ public void test_setStyleRangeLorg_eclipse_swt_custom_StyleRange(){
 
 
 	assertNotEquals(":2:", style2, style1);
-	assertTrue(":1:", !style1.similarTo(style2));
+	assertFalse(":1:", style1.similarTo(style2));
 
 
 	assertNotEquals(":2:", style1, style2);
 
 
-	assertTrue(":1:", !style2.similarTo(style1));
+	assertFalse(":1:", style2.similarTo(style1));
 
 
 
@@ -4768,19 +4550,12 @@ public void test_setStyleRangeLorg_eclipse_swt_custom_StyleRange(){
 
 @Test
 public void test_setStyleRanges$Lorg_eclipse_swt_custom_StyleRange() {
-	boolean exceptionThrown = false;
 	StyleRange[] ranges = new StyleRange[] {
 		new StyleRange(0, 1, getColor(RED), null),
 		new StyleRange(2, 1, getColor(RED), null)};
 
 	text.setText("Line0\r\n");
-	try {
-		text.setStyleRanges(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.setStyleRanges(null));
 
 	text.setStyleRanges(ranges);
 	StyleRange[] currentRanges = text.getStyleRanges();
@@ -4806,20 +4581,13 @@ public void test_setTabsI(){
 
 @Test
 public void test_setTextLjava_lang_String(){
-	boolean exceptionThrown = false;
 
 	text.setText("");
 	assertEquals("", text.getText());
 	text.setText("01234567890");
 	assertEquals("01234567890", text.getText());
 
-	try {
-		text.setText(null);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertTrue(exceptionThrown);
+	assertThrows(IllegalArgumentException.class, () -> text.setText(null));
 
 	assertEquals("01234567890", text.getText());
 	text.setText("");
@@ -4828,22 +4596,13 @@ public void test_setTextLjava_lang_String(){
 
 @Test
 public void test_setTextLimitI(){
-	boolean exceptionThrown = false;
-
 	text.setTextLimit(10);
 	assertEquals(":a:", 10, text.getTextLimit());
 
 	text.setTextLimit(-1);
 	assertEquals(":b:", -1, text.getTextLimit());
 
-	try {
-		text.setTextLimit(0);
-	}
-	catch (IllegalArgumentException e) {
-		exceptionThrown = true;
-	}
-	assertEquals(":c:", true, exceptionThrown);
-	exceptionThrown = false;
+	assertThrows(IllegalArgumentException.class, () -> text.setTextLimit(0));
 }
 
 @Test
@@ -5119,6 +4878,8 @@ public void test_caretSizeAndPositionVariableGlyphMetrics() {
 	text.setStyleRange(range);
 	text.setCaretOffset(0);
 	assertEquals(text.getLineHeight(), text.getCaret().getSize().y);
+	// See https://github.com/eclipse-platform/eclipse.platform.swt/issues/294
+	assumeFalse("Test fails on Linux: expected:<87> but was:<174>", SwtTestUtil.isLinux);
 	// +5: caret takes 5 more pixels
 	assertEquals(text.getLineHeight(0) - text.getCaret().getSize().y, text.getCaret().getBounds().y);
 	text.setCaretOffset(1);
@@ -5568,14 +5329,14 @@ public void test_setStyleRanges_render() throws InterruptedException {
 	text.setText("abc");
 	text.setMargins(0, 0, 0, 0);
 	text.pack();
-	processEvents(1000, () -> hasPixel(text, text.getBackground()) && !hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
+	SwtTestUtil.processEvents(1000, () -> hasPixel(text, text.getBackground()) && !hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
 	assertTrue(hasPixel(text, text.getBackground()));
 	assertFalse(hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
 	text.setStyleRanges(new StyleRange[] {
 			new StyleRange(0, 1, null, text.getDisplay().getSystemColor(SWT.COLOR_RED)),
 			new StyleRange(2, 1, null, text.getDisplay().getSystemColor(SWT.COLOR_RED)),
 	});
-	processEvents(100, () ->
+	SwtTestUtil.processEvents(100, () ->
 		hasPixel(text, text.getBackground()) &&
 		hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
 	assertTrue(hasPixel(text, text.getBackground()));
@@ -5583,7 +5344,7 @@ public void test_setStyleRanges_render() throws InterruptedException {
 	text.replaceStyleRanges(0, 3, new StyleRange[] {
 			new StyleRange(0, 3, null, text.getDisplay().getSystemColor(SWT.COLOR_RED)),
 	});
-	processEvents(1000, () -> !hasPixel(text, text.getBackground()) && hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
+	SwtTestUtil.processEvents(1000, () -> !hasPixel(text, text.getBackground()) && hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
 	assertFalse(hasPixel(text, text.getBackground()));
 	assertTrue(hasPixel(text, text.getDisplay().getSystemColor(SWT.COLOR_RED)));
 }
@@ -5680,7 +5441,7 @@ private void testLineStyleListener(String content, LineStyleListener listener, B
 		text.setText(content);
 		text.setMargins(0, 0, 0, 0);
 		text.pack();
-		processEvents(1000, evaluation);
+		SwtTestUtil.processEvents(1000, evaluation);
 		assertTrue("Text not styled correctly.", evaluation.getAsBoolean());
 	} finally {
 		text.removeLineStyleListener(listener);
@@ -5695,7 +5456,7 @@ public void test_variableToFixedLineHeight() throws InterruptedException {
 	text.setText("\nabc\n\nd");
 	text.setMargins(0, 0, 0, 0);
 	text.setSize(100, 100);
-	processEvents(1000, () -> Boolean.FALSE);
+	SwtTestUtil.processEvents(1000, null);
 	StyleRange range = new StyleRange();
 	range.start = 1;
 	range.length = 1;
@@ -5705,7 +5466,7 @@ public void test_variableToFixedLineHeight() throws InterruptedException {
 	text.setStyleRange(range);
 	// move to variable height and paint with red to check later whether
 	// redraw was done properly
-	processEvents(100, null);
+	SwtTestUtil.processEvents(100, null);
 	range = new StyleRange();
 	range.start = 1;
 	range.length = 1;
@@ -5714,24 +5475,8 @@ public void test_variableToFixedLineHeight() throws InterruptedException {
 	text.replaceStyleRanges(0, text.getCharCount(), new StyleRange[] {range});
 	// changing to fixed line height here should redraw widget until
 	// the bottom and clear the area (no more red)
-	processEvents(3000, () -> !hasPixel(text, colorForVariableHeight));
+	SwtTestUtil.processEvents(3000, () -> !hasPixel(text, colorForVariableHeight));
 	assertFalse(hasPixel(text, colorForVariableHeight));
-}
-
-/**
- * Check if StyledText widget contains the given color.
- *
- * @param text widget to check
- * @param expectedColor color to find
- * @return <code>true</code> if the given color was found in current text widget
- *         bounds
- */
-private boolean hasPixel(StyledText text, Color expectedColor) {
-	return SwtTestUtil.hasPixel(text, expectedColor);
-}
-
-private boolean hasPixel(StyledText text, Color expectedColor, Rectangle rect) {
-	return SwtTestUtil.hasPixel(text, expectedColor, rect);
 }
 
 private String blockSelectionTestText() {
@@ -5801,12 +5546,18 @@ protected void rtfCopy() {
 	text.addLineStyleListener(listener);
 	linesCalled[0] = 0;
 	text.copy();
-	assertEquals("not all lines tested for RTF copy", text.getLineCount(), linesCalled[0]);
+
+	// The listener is invoked twice for each line, once for RTF and once for HTML.
+	assertEquals("not all lines tested for RTF & HTML copy", 2 * text.getLineCount(), linesCalled[0]);
 
 	Clipboard clipboard = new Clipboard(text.getDisplay());
 	RTFTransfer rtfTranfer = RTFTransfer.getInstance();
 	String clipboardText = (String) clipboard.getContents(rtfTranfer);
 	assertTrue("RTF copy failed", clipboardText.length() > 0);
+
+	HTMLTransfer htmlTranfer = HTMLTransfer.getInstance();
+	clipboardText = (String) clipboard.getContents(htmlTranfer);
+	assertTrue("HTML copy failed", clipboardText.length() > 0);
 
 	clipboard.dispose();
 	text.removeLineStyleListener(listener);
@@ -5842,7 +5593,7 @@ public void test_GlyphMetricsOnTab_Bug549110() throws InterruptedException {
 	text.setText("ab\tcde");
 	text.setMargins(0, 0, 0, 0);
 	text.pack();
-	processEvents(1000,
+	SwtTestUtil.processEvents(1000,
 			() -> hasPixel(text, text.getBackground())
 					&& !hasPixel(text, getColor(RED))
 					&& !hasPixel(text, getColor(BLUE)));
@@ -5858,7 +5609,7 @@ public void test_GlyphMetricsOnTab_Bug549110() throws InterruptedException {
 	tabStyle.metrics = new GlyphMetrics(0, 0, 100);
 	text.replaceStyleRanges(0, text.getText().length(), new StyleRange[] { styleR, tabStyle, styleB });
 	text.pack();
-	processEvents(1000, () -> hasPixel(text, getColor(RED)) && hasPixel(text, getColor(BLUE)));
+	SwtTestUtil.processEvents(1000, () -> hasPixel(text, getColor(RED)) && hasPixel(text, getColor(BLUE)));
 	assertTrue("Wrong style before tab", hasPixel(text, getColor(RED)));
 	assertTrue("Wrong style after tab", hasPixel(text, getColor(BLUE)));
 }
@@ -5958,20 +5709,20 @@ public void test_bug551335_lostStyles() throws InterruptedException {
 	for (StyleRange s : styles) {
 		text.setStyleRange(s);
 	}
-	processEvents(1000, testAllLinesStyled);
+	SwtTestUtil.processEvents(1000, testAllLinesStyled);
 	assertTrue(testAllLinesStyled.getAsBoolean());
 
 	text.setStyleRange(null); // reset style
-	processEvents(1000, testUnstyledText);
+	SwtTestUtil.processEvents(1000, testUnstyledText);
 	assertTrue(testUnstyledText.getAsBoolean());
 
 	// 2. apply styles as array
 	text.setStyleRanges(styles);
-	processEvents(1000, testAllLinesStyled);
+	SwtTestUtil.processEvents(1000, testAllLinesStyled);
 	assertTrue(testAllLinesStyled.getAsBoolean());
 
 	text.setStyleRange(null); // reset style
-	processEvents(1000, testUnstyledText);
+	SwtTestUtil.processEvents(1000, testUnstyledText);
 	assertTrue(testUnstyledText.getAsBoolean());
 
 	// 3. apply styles using ranges
@@ -5983,11 +5734,11 @@ public void test_bug551335_lostStyles() throws InterruptedException {
 		styles[i] = style;
 	}
 	text.setStyleRanges(ranges, styles);
-	processEvents(1000, testAllLinesStyled);
+	SwtTestUtil.processEvents(1000, testAllLinesStyled);
 	assertTrue(testAllLinesStyled.getAsBoolean());
 
 	text.setStyleRange(null); // reset style
-	processEvents(1000, testUnstyledText);
+	SwtTestUtil.processEvents(1000, testUnstyledText);
 	assertTrue(testUnstyledText.getAsBoolean());
 }
 
@@ -6121,17 +5872,14 @@ public void test_backspaceAndDelete() {
 @Test
 public void test_replaceTextRange_isInsideCRLF() {
 	text.setText("0123\r\n6789");
-	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class, () -> {
-		text.replaceTextRange(5, 0, "x");
-	});
+	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class,
+			() -> text.replaceTextRange(5, 0, "x"));
 
-	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class, () -> {
-		text.replaceTextRange(0, 5, "x");
-	});
+	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class,
+			() -> text.replaceTextRange(0, 5, "x"));
 
-	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class, () -> {
-		text.replaceTextRange(5, 5, "x");
-	});
+	assertThrows("Exception shall be thrown when splitting CRLF", IllegalArgumentException.class,
+			() -> text.replaceTextRange(5, 5, "x"));
 
 	// Shouldn't throw when CR/LF were already on different lines
 	text.setText("0\r2\n4");

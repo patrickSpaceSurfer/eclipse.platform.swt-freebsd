@@ -17,8 +17,6 @@ import java.io.*;
 import java.util.*;
 import java.util.Map.*;
 
-import javax.xml.parsers.*;
-
 import org.w3c.dom.*;
 import org.xml.sax.*;
 
@@ -946,15 +944,27 @@ public void setSelectorEnum(String selectorEnumName) {
 }
 
 Document getDocument(String xmlPath) {
-	try {
-		InputStream is = null;
-		if (xmlPath.indexOf(File.separatorChar) == -1) is = getClass().getResourceAsStream(xmlPath);
-		if (is == null) is = new BufferedInputStream(new FileInputStream(xmlPath));
-		if (is != null) return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(is));
+	try (InputStream is = createInputStream(xmlPath))  {
+		if (is != null) {
+			@SuppressWarnings("restriction")
+			Document d = org.eclipse.core.internal.runtime.XmlProcessorFactory.parseWithErrorOnDOCTYPE(new InputSource(is));
+			return d;
+		}
 	} catch (Exception e) {
-//		e.printStackTrace();
+		//ignored
 	}
 	return null;
+}
+
+private InputStream createInputStream(String xmlPath) throws FileNotFoundException {
+	InputStream is = null;
+	if (xmlPath.indexOf(File.separatorChar) == -1) {
+		is = getClass().getResourceAsStream(xmlPath); // null if noresource is found
+	}
+	if (is == null) {
+		is = new BufferedInputStream(new FileInputStream(xmlPath));
+	}
+	return is;
 }
 
 public String[] getExtraAttributeNames(Node node) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000, 2022 IBM Corporation and others.
+ * Copyright (c) 2000, 2023 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -24,6 +24,11 @@
 #define GTK4_NATIVE(func) Java_org_eclipse_swt_internal_gtk4_GTK4_##func
 #endif
 
+#ifdef _WIN32
+  /* Many methods don't use their 'env' and 'that' arguments */
+  #pragma warning (disable: 4100)
+#endif
+
 #ifndef NO_gdk_1clipboard_1get_1content
 JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1clipboard_1get_1content)
 	(JNIEnv *env, jclass that, jlong arg0)
@@ -37,22 +42,36 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1clipboard_1get_1content)
 #endif
 
 #ifndef NO_gdk_1clipboard_1get_1formats
-JNIEXPORT void JNICALL GTK4_NATIVE(gdk_1clipboard_1get_1formats)
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1clipboard_1get_1formats)
 	(JNIEnv *env, jclass that, jlong arg0)
 {
+	jlong rc = 0;
 	GTK4_NATIVE_ENTER(env, that, gdk_1clipboard_1get_1formats_FUNC);
-	gdk_clipboard_get_formats((GdkClipboard*)arg0);
+	rc = (jlong)gdk_clipboard_get_formats((GdkClipboard*)arg0);
 	GTK4_NATIVE_EXIT(env, that, gdk_1clipboard_1get_1formats_FUNC);
+	return rc;
 }
 #endif
 
 #ifndef NO_gdk_1clipboard_1set
 JNIEXPORT void JNICALL GTK4_NATIVE(gdk_1clipboard_1set)
-	(JNIEnv *env, jclass that, jlong arg0, jint arg1, jlong arg2)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jlong arg2)
 {
 	GTK4_NATIVE_ENTER(env, that, gdk_1clipboard_1set_FUNC);
 	gdk_clipboard_set((GdkClipboard*)arg0, (GType)arg1, arg2);
 	GTK4_NATIVE_EXIT(env, that, gdk_1clipboard_1set_FUNC);
+}
+#endif
+
+#ifndef NO_gdk_1clipboard_1set_1content
+JNIEXPORT jboolean JNICALL GTK4_NATIVE(gdk_1clipboard_1set_1content)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	jboolean rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1clipboard_1set_1content_FUNC);
+	rc = (jboolean)gdk_clipboard_set_content((GdkClipboard*)arg0, (GdkContentProvider*)arg1);
+	GTK4_NATIVE_EXIT(env, that, gdk_1clipboard_1set_1content_FUNC);
+	return rc;
 }
 #endif
 
@@ -108,6 +127,18 @@ JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1formats_1builder_1new)
 }
 #endif
 
+#ifndef NO_gdk_1content_1formats_1to_1string
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1formats_1to_1string)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1content_1formats_1to_1string_FUNC);
+	rc = (jlong)gdk_content_formats_to_string((GdkContentFormats *)arg0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1content_1formats_1to_1string_FUNC);
+	return rc;
+}
+#endif
+
 #ifndef NO_gdk_1content_1provider_1get_1value
 JNIEXPORT jboolean JNICALL GTK4_NATIVE(gdk_1content_1provider_1get_1value)
 	(JNIEnv *env, jclass that, jlong arg0, jlong arg1, jlongArray arg2)
@@ -120,6 +151,46 @@ JNIEXPORT jboolean JNICALL GTK4_NATIVE(gdk_1content_1provider_1get_1value)
 fail:
 	if (arg2 && lparg2) (*env)->ReleaseLongArrayElements(env, arg2, lparg2, 0);
 	GTK4_NATIVE_EXIT(env, that, gdk_1content_1provider_1get_1value_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gdk_1content_1provider_1new_1for_1value
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1provider_1new_1for_1value)
+	(JNIEnv *env, jclass that, jlong arg0)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1content_1provider_1new_1for_1value_FUNC);
+	rc = (jlong)gdk_content_provider_new_for_value((const GValue*)arg0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1content_1provider_1new_1for_1value_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gdk_1content_1provider_1new_1typed
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1provider_1new_1typed)
+	(JNIEnv *env, jclass that, jlong arg0, jlong arg1)
+{
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1content_1provider_1new_1typed_FUNC);
+	rc = (jlong)gdk_content_provider_new_typed((GType)arg0, arg1);
+	GTK4_NATIVE_EXIT(env, that, gdk_1content_1provider_1new_1typed_FUNC);
+	return rc;
+}
+#endif
+
+#ifndef NO_gdk_1content_1provider_1new_1union
+JNIEXPORT jlong JNICALL GTK4_NATIVE(gdk_1content_1provider_1new_1union)
+	(JNIEnv *env, jclass that, jlongArray arg0, jint arg1)
+{
+	jlong *lparg0=NULL;
+	jlong rc = 0;
+	GTK4_NATIVE_ENTER(env, that, gdk_1content_1provider_1new_1union_FUNC);
+	if (arg0) if ((lparg0 = (*env)->GetLongArrayElements(env, arg0, NULL)) == NULL) goto fail;
+	rc = (jlong)gdk_content_provider_new_union((GdkContentProvider **)lparg0, (gsize)arg1);
+fail:
+	if (arg0 && lparg0) (*env)->ReleaseLongArrayElements(env, arg0, lparg0, 0);
+	GTK4_NATIVE_EXIT(env, that, gdk_1content_1provider_1new_1union_FUNC);
 	return rc;
 }
 #endif
@@ -762,6 +833,20 @@ fail:
 	if (arg0 && lparg0) (*env)->ReleaseByteArrayElements(env, arg0, lparg0, 0);
 	GTK4_NATIVE_EXIT(env, that, gtk_1image_1new_1from_1icon_1name_FUNC);
 	return rc;
+}
+#endif
+
+#ifndef NO_gtk_1image_1set_1from_1icon_1name
+JNIEXPORT void JNICALL GTK4_NATIVE(gtk_1image_1set_1from_1icon_1name)
+	(JNIEnv *env, jclass that, jlong arg0, jbyteArray arg1)
+{
+	jbyte *lparg1=NULL;
+	GTK4_NATIVE_ENTER(env, that, gtk_1image_1set_1from_1icon_1name_FUNC);
+	if (arg1) if ((lparg1 = (*env)->GetByteArrayElements(env, arg1, NULL)) == NULL) goto fail;
+	gtk_image_set_from_icon_name((GtkImage *)arg0, (const gchar *)lparg1);
+fail:
+	if (arg1 && lparg1) (*env)->ReleaseByteArrayElements(env, arg1, lparg1, 0);
+	GTK4_NATIVE_EXIT(env, that, gtk_1image_1set_1from_1icon_1name_FUNC);
 }
 #endif
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2021 Syntevo and others.
+ * Copyright (c) 2021, 2023 Syntevo and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -474,6 +474,11 @@ public class GTK4 {
 	public static final native void gtk_image_set_from_paintable(long image, long paintable);
 	/** @param icon_name cast=(const char *) */
 	public static final native long gtk_image_new_from_icon_name(byte[] icon_name);
+	/**
+	 * @param image cast=(GtkImage *)
+	 * @param icon_name cast=(const gchar *)
+	 */
+	public static final native void gtk_image_set_from_icon_name(long image, byte[] icon_name);
 	/** @param image cast=(GtkImage *) */
 	public static final native void gtk_image_clear(long image);
 
@@ -569,11 +574,16 @@ public class GTK4 {
 	 * @param clipboard cast=(GdkClipboard*)
 	 * @param type cast=(GType)
 	 */
-	public static final native void gdk_clipboard_set(long clipboard, int type, long data);
+	public static final native void gdk_clipboard_set(long clipboard, long type, long data);
+	/**
+	 * @param clipboard cast=(GdkClipboard*)
+	 * @param provider cast=(GdkContentProvider*)
+	 */
+	public static final native boolean gdk_clipboard_set_content(long clipboard, long provider);
 	/**
 	 * @param clipboard cast=(GdkClipboard*)
 	 */
-	public static final native void gdk_clipboard_get_formats(long clipboard);
+	public static final native long gdk_clipboard_get_formats(long clipboard);
 	/**
 	 * @param clipboard cast=(GdkClipboard*)
 	 */
@@ -584,6 +594,20 @@ public class GTK4 {
 	 * @param error cast=(GError **)
 	 */
 	public static final native boolean gdk_content_provider_get_value(long provider, long value, long[] error);
-
+	/**
+	 * @param type cast=(GType)
+	 */
+	public static final native long gdk_content_provider_new_typed(long type, long data);
+	/**
+	 * @param value cast=(const GValue*)
+	 */
+	public static final native long gdk_content_provider_new_for_value(long value);
+	/**
+	 * @param providers cast=(GdkContentProvider **)
+	 * @param n_providers cast=(gsize)
+	 */
+	public static final native long gdk_content_provider_new_union(long[] providers, int n_providers);
+	/** @param formats cast=(GdkContentFormats *) */
+	public static final native long gdk_content_formats_to_string(long formats);
 
 }

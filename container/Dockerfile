@@ -1,4 +1,4 @@
-FROM eclipsecbi/fedora-gtk3-mutter:30-gtk3.24
+FROM eclipsecbi/fedora-gtk3-mutter:39-gtk3.24@sha256:ccb3ac1ffc1bdb4b6e3fdbc82f3b2cfc4b8a91aacc66d94ad76d2b0b8fd6b20a
 
 # Back to root for install
 USER 0
@@ -23,7 +23,7 @@ ENTRYPOINT [ "uid_entrypoint", "jenkins-slave" ]
 RUN dnf -y update && dnf -y install \
     java-openjdk maven webkit2gtk3-devel \
     make gcc mesa-libGLU-devel mesa-libGL-devel \
-    libXt-devel \
+    libXt-devel procps-ng \
     && dnf clean all
 
 #Back to named user

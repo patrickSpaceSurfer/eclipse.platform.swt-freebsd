@@ -1235,7 +1235,6 @@ public void setLocation (Point location) {
 /**
  * Sets the orientation of the receiver, which must be one
  * of the constants <code>SWT.LEFT_TO_RIGHT</code> or <code>SWT.RIGHT_TO_LEFT</code>.
- * <p>
  *
  * @param orientation new orientation style
  *
@@ -1351,7 +1350,7 @@ LRESULT wmTimer (long wParam, long lParam) {
 	if (wParam == ID_TOOLTIP_TIMER) {
 		POINT pt = new POINT ();
 		OS.GetCursorPos (pt);
-		if (selectedMenuItem != null) {
+		if (selectedMenuItem != null && selectedMenuItem.parent != null) {
 			RECT rect = new RECT ();
 			boolean success = OS.GetMenuItemRect (0, selectedMenuItem.parent.handle, selectedMenuItem.index, rect);
 			if (!success) return null;

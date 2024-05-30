@@ -15,9 +15,11 @@ package org.eclipse.swt.tests.junit;
 
 
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
@@ -119,7 +121,7 @@ public void test_setVisibility_and_sizing() {
 }
 
 @Test
-public void test_setFocus_toChild_afterOpen() throws InterruptedException {
+public void test_setFocus_toChild_afterOpen() {
 	if (SwtTestUtil.isCocoa) {
 		//TODO Fix Cocoa failure.
 		if (SwtTestUtil.verbose) {
@@ -128,16 +130,13 @@ public void test_setFocus_toChild_afterOpen() throws InterruptedException {
 		return;
 	}
 	Text focusChild = new Text(composite, SWT.NONE);
-	shell.open();
-	// Wait for the shell to become active
-	processEvents(500, () -> shell.getDisplay().getActiveShell() == shell);
-	assertEquals(shell, shell.getDisplay().getActiveShell());
+	SwtTestUtil.waitShellActivate(shell::open, shell);
 	composite.setFocus();
 	assertTrue("First child widget should have focus", focusChild.isFocusControl());
 }
 
 @Test
-public void test_setFocus_toChild_beforeOpen() throws InterruptedException {
+public void test_setFocus_toChild_beforeOpen() {
 	if (SwtTestUtil.isCocoa) {
 		//TODO Fix Cocoa failure.
 		if (SwtTestUtil.verbose) {
@@ -147,11 +146,44 @@ public void test_setFocus_toChild_beforeOpen() throws InterruptedException {
 	}
 	Text focusChild = new Text(composite, SWT.NONE);
 	composite.setFocus();
-	shell.open();
-	// Wait for the shell to become active
-	processEvents(500, () -> shell.getDisplay().getActiveShell() == shell);
-	assertEquals(shell, shell.getDisplay().getActiveShell());
+	SwtTestUtil.waitShellActivate(shell::open, shell);
 	assertTrue("First child widget should have focus", focusChild.isFocusControl());
+}
+
+@Test
+public void test_setFocus_withInvisibleChild() {
+	final AtomicReference<Boolean> wasSetFocusCalledOnInvisibleChildWidget = new AtomicReference<>(false);
+	Composite invisibleChildWidget = new Composite(composite, SWT.NONE) {
+		@Override
+		public boolean setFocus() {
+			wasSetFocusCalledOnInvisibleChildWidget.set(true);
+			return super.setFocus();
+		}
+	};
+	invisibleChildWidget.setVisible(false);
+	SwtTestUtil.waitShellActivate(shell::open, shell);
+
+	composite.setFocus();
+	assertFalse("Composite should not try to set focus on invisible child", wasSetFocusCalledOnInvisibleChildWidget.get());
+}
+
+@Test
+public void test_setFocus_withVisibleAndInvisibleChild() {
+	final AtomicReference<Boolean> wasSetFocusCalledOnInvisibleChildWidget = new AtomicReference<>(false);
+	Composite invisibleChildWidget = new Composite(composite, SWT.NONE) {
+		@Override
+		public boolean setFocus() {
+			wasSetFocusCalledOnInvisibleChildWidget.set(true);
+			return super.setFocus();
+		}
+	};
+	invisibleChildWidget.setVisible(false);
+	Composite visibleChildWidget = new Composite(composite, SWT.NONE);
+	SwtTestUtil.waitShellActivate(shell::open, shell);
+
+	composite.setFocus();
+	assertFalse("Composite should not try to set focus on invisible child", wasSetFocusCalledOnInvisibleChildWidget.get());
+	assertTrue("Visible child widget should have focus", getElementExpectedToHaveFocusAfterSetFocusOnParent(visibleChildWidget).isFocusControl());
 }
 
 @Test
@@ -163,6 +195,10 @@ public void test_setTabList$Lorg_eclipse_swt_widgets_Control() {
 	assertArrayEquals(tablist, composite.getTabList());
 	button1.dispose();
 	button2.dispose();
+}
+
+protected Composite getElementExpectedToHaveFocusAfterSetFocusOnParent(Composite visibleChild) {
+	return visibleChild;
 }
 
 /* custom */

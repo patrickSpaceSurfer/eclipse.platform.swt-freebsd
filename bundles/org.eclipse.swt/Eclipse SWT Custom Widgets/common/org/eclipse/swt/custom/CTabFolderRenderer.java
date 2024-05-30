@@ -755,9 +755,6 @@ public class CTabFolderRenderer {
 
 	/*
 	 * Draw the border of the tab
-	 *
-	 * @param gc
-	 * @param shape
 	 */
 	void drawBorder(GC gc, int[] shape) {
 
@@ -1045,8 +1042,6 @@ public class CTabFolderRenderer {
 
 	/*
 	 * Draw the unselected border for the receiver on the left.
-	 *
-	 * @param gc
 	 */
 	void drawLeftUnselectedBorder(GC gc, Rectangle bounds, int state) {
 		int x = bounds.x;
@@ -1184,8 +1179,6 @@ public class CTabFolderRenderer {
 
 	/*
 	 * Draw the unselected border for the receiver on the right.
-	 *
-	 * @param gc
 	 */
 	void drawRightUnselectedBorder(GC gc, Rectangle bounds, int state) {
 		int x = bounds.x;
@@ -1354,9 +1347,17 @@ public class CTabFolderRenderer {
 					}
 				}
 
-				//Highlight MUST be drawn before the outline so that outline can cover it in the right spots (start of swoop)
+				//Highlight colors MUST be drawn before the outline so that outline can cover it in the right spots (start of swoop)
 				//otherwise the curve looks jagged
 				drawHighlight(gc, bounds, state, rightEdge);
+
+				// draw highlight marker of selected tab
+				if (parent.selectionHighlightBarThickness > 0 && parent.simple) {
+					Color previousColor = gc.getBackground();
+					gc.setBackground(item.getDisplay().getSystemColor(parent.shouldHighlight() ? SWT.COLOR_LIST_SELECTION : SWT.COLOR_WIDGET_DISABLED_FOREGROUND));
+					gc.fillRectangle(x + 1 /* outline */, parent.onBottom ? y + height - 1 - parent.selectionHighlightBarThickness : y + 1, width - 2 /*outline*/, parent.selectionHighlightBarThickness);
+					gc.setBackground(previousColor);
+				}
 
 				// draw outline
 				shape[0] = Math.max(0, borderLeft - 1);
@@ -1797,4 +1798,5 @@ public class CTabFolderRenderer {
 	boolean useEllipses() {
 		return parent.simple;
 	}
+
 }
