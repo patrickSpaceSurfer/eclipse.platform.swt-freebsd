@@ -886,9 +886,7 @@ public void addLineStyleListener(LineStyleListener listener) {
  * </ul>
  */
 public void addModifyListener(ModifyListener modifyListener) {
-	checkWidget();
-	if (modifyListener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	addListener(SWT.Modify, new TypedListener(modifyListener));
+	addTypedListener(modifyListener, SWT.Modify);
 }
 /**
  * Adds a paint object listener. A paint object event is sent by the widget when an object
@@ -940,9 +938,7 @@ public void addPaintObjectListener(PaintObjectListener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener(SelectionListener listener) {
-	checkWidget();
-	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	addListener(SWT.Selection, new TypedListener(listener));
+	addTypedListener(listener, SWT.Selection);
 }
 /**
  * Adds a verify key listener. A VerifyKey event is sent by the widget when a key
@@ -979,9 +975,7 @@ public void addVerifyKeyListener(VerifyKeyListener listener) {
  * </ul>
  */
 public void addVerifyListener(VerifyListener verifyListener) {
-	checkWidget();
-	if (verifyListener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	addListener(SWT.Verify, new TypedListener(verifyListener));
+	addTypedListener(verifyListener, SWT.Verify);
 }
 /**
  * Adds a word movement listener. A movement event is sent when the boundary
@@ -5926,18 +5920,16 @@ void handlePaint(Event event) {
 	if (event.width == 0 || event.height == 0) return;
 	if (clientAreaWidth == 0 || clientAreaHeight == 0) return;
 
-	int startLine = getLineIndex(event.y);
-	int y = getLinePixel(startLine);
-	int endY = event.y + event.height;
+	final int endY = event.y + event.height;
 	GC gc = event.gc;
 	Color background = getBackground();
 	Color foreground = getForeground();
 	if (endY > 0) {
-		int lineCount = isSingleLine() ? 1 : content.getLineCount();
-		int x = leftMargin - horizontalScrollOffset;
-		for (int i = startLine; y < endY && i < lineCount; i++) {
-			y += renderer.drawLine(i, x, y, gc, background, foreground);
-		}
+		final int startLine = getLineIndex(event.y);
+		final int endLine = isSingleLine() ? 1 : content.getLineCount();
+		final int x = leftMargin - horizontalScrollOffset;
+		int y = getLinePixel(startLine);
+		y += renderer.drawLines(startLine, endLine, x, y, endY, gc, background, foreground);
 		if (y < endY) {
 			gc.setBackground(background);
 			drawBackground(gc, 0, y, clientAreaWidth, endY - y);
@@ -6040,7 +6032,13 @@ void handleResize(Event event) {
 void handleTextChanged(TextChangedEvent event) {
 	int offset = ime.getCompositionOffset();
 	if (offset != -1 && lastTextChangeStart < offset) {
-		ime.setCompositionOffset(offset + lastTextChangeNewCharCount - lastTextChangeReplaceCharCount);
+		// updating the compositionOffset of the ongoing IME if last IMEs text is deleted meanwhile
+		// for example 1.insert IME text 2.open IME menu 3. ctrl+backspace => 4. commit IME would result in IllegalArgumentException
+		int compositionOffset = ime.getCaretOffset() + lastTextChangeNewCharCount - lastTextChangeReplaceCharCount;
+		// workaround: while ongoing IME non-ime text is deleted it may result in too big compositionOffset
+		// for example 1.insert IME text 2.insert space 3.open IME menu 4. ctrl+backspace twice => 5. commit IME would result in IllegalArgumentException
+		compositionOffset= Math.min(compositionOffset, getCharCount());
+		ime.setCompositionOffset(compositionOffset);
 	}
 	int firstLine = content.getLineAtOffset(lastTextChangeStart);
 	resetCache(firstLine, 0);
@@ -7488,7 +7486,7 @@ public void redrawRange(int start, int length, boolean clearBackground) {
 public void removeBidiSegmentListener(BidiSegmentListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.LineGetSegments, listener);
+	removeTypedListener(ST.LineGetSegments, listener);
 	resetCache(0, content.getLineCount());
 	setCaretLocations();
 	super.redraw();
@@ -7511,7 +7509,7 @@ public void removeBidiSegmentListener(BidiSegmentListener listener) {
 public void removeCaretListener(CaretListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.CaretMoved, listener);
+	removeTypedListener(ST.CaretMoved, listener);
 }
 /**
  * Removes the specified extended modify listener.
@@ -7529,7 +7527,7 @@ public void removeCaretListener(CaretListener listener) {
 public void removeExtendedModifyListener(ExtendedModifyListener extendedModifyListener) {
 	checkWidget();
 	if (extendedModifyListener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.ExtendedModify, extendedModifyListener);
+	removeTypedListener(ST.ExtendedModify, extendedModifyListener);
 }
 /**
  * Removes the specified line background listener.
@@ -7547,7 +7545,7 @@ public void removeExtendedModifyListener(ExtendedModifyListener extendedModifyLi
 public void removeLineBackgroundListener(LineBackgroundListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.LineGetBackground, listener);
+	removeTypedListener(ST.LineGetBackground, listener);
 }
 /**
  * Removes the specified line style listener.
@@ -7565,7 +7563,7 @@ public void removeLineBackgroundListener(LineBackgroundListener listener) {
 public void removeLineStyleListener(LineStyleListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.LineGetStyle, listener);
+	removeTypedListener(ST.LineGetStyle, listener);
 	setCaretLocations();
 }
 /**
@@ -7584,7 +7582,7 @@ public void removeLineStyleListener(LineStyleListener listener) {
 public void removeModifyListener(ModifyListener modifyListener) {
 	checkWidget();
 	if (modifyListener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(SWT.Modify, modifyListener);
+	removeTypedListener(SWT.Modify, modifyListener);
 }
 /**
  * Removes the specified listener.
@@ -7603,7 +7601,7 @@ public void removeModifyListener(ModifyListener modifyListener) {
 public void removePaintObjectListener(PaintObjectListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.PaintObject, listener);
+	removeTypedListener(ST.PaintObject, listener);
 }
 /**
  * Removes the listener from the collection of listeners who will
@@ -7625,7 +7623,7 @@ public void removePaintObjectListener(PaintObjectListener listener) {
 public void removeSelectionListener(SelectionListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(SWT.Selection, listener);
+	removeTypedListener(SWT.Selection, listener);
 }
 /**
  * Removes the specified verify listener.
@@ -7643,7 +7641,7 @@ public void removeSelectionListener(SelectionListener listener) {
 public void removeVerifyListener(VerifyListener verifyListener) {
 	checkWidget();
 	if (verifyListener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(SWT.Verify, verifyListener);
+	removeTypedListener(SWT.Verify, verifyListener);
 }
 /**
  * Removes the specified key verify listener.
@@ -7660,7 +7658,7 @@ public void removeVerifyListener(VerifyListener verifyListener) {
  */
 public void removeVerifyKeyListener(VerifyKeyListener listener) {
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.VerifyKey, listener);
+	removeTypedListener(ST.VerifyKey, listener);
 }
 /**
  * Removes the specified word movement listener.
@@ -7685,8 +7683,8 @@ public void removeVerifyKeyListener(VerifyKeyListener listener) {
 public void removeWordMovementListener(MovementListener listener) {
 	checkWidget();
 	if (listener == null) SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	removeListener(ST.WordNext, listener);
-	removeListener(ST.WordPrevious, listener);
+	removeTypedListener(ST.WordNext, listener);
+	removeTypedListener(ST.WordPrevious, listener);
 }
 /**
  * Replaces the styles in the given range with new styles.  This method
@@ -8624,16 +8622,29 @@ void setClipboardContent(int start, int length, int clipboardType) throws SWTErr
 		data = new Object[]{plainText};
 		types = new Transfer[]{plainTextTransfer};
 	} else {
-		RTFTransfer rtfTransfer = RTFTransfer.getInstance();
-		RTFWriter rtfWriter = new RTFWriter(this, start, length);
-		String rtfText = getPlatformDelimitedText(rtfWriter);
+		try {
+			RTFTransfer rtfTransfer = RTFTransfer.getInstance();
+			RTFWriter rtfWriter = new RTFWriter(this, start, length);
+			String rtfText = getPlatformDelimitedText(rtfWriter);
 
-		HTMLTransfer htmlTransfer = HTMLTransfer.getInstance();
-		HTMLWriter htmlWriter = new HTMLWriter(this, start, length, content);
-		String htmlText = getPlatformDelimitedText(htmlWriter);
-
-		data = new Object[]{rtfText, htmlText, plainText};
-		types = new Transfer[]{rtfTransfer, htmlTransfer, plainTextTransfer};
+			HTMLTransfer htmlTransfer = HTMLTransfer.getInstance();
+			HTMLWriter htmlWriter = new HTMLWriter(this, start, length, content);
+			String htmlText = getPlatformDelimitedText(htmlWriter);
+			htmlText = "" +htmlText; //cause extra memory pressure to fail fast instead of failing in HTMLTransfer.javaToNative()
+			data = new Object[]{rtfText, htmlText, plainText};
+			types = new Transfer[]{rtfTransfer, htmlTransfer, plainTextTransfer};
+		} catch (OutOfMemoryError oome) {
+			// Adding RTF and HTML text may increase size by factor > 15
+			// fall back: copy plain text
+			data = new Object[] { plainText };
+			types = new Transfer[] { plainTextTransfer };
+			clipboard.setContents(data, types, clipboardType);
+			OutOfMemoryError customOome = new OutOfMemoryError(
+					"Out of Memory: Copied only plain text (" + plainText.lines().count() + " lines).");
+			customOome.initCause(oome);
+			// Still throw as it is likely that other threads silently failed too, but at least copied text is not lost
+			throw customOome;
+		}
 	}
 	clipboard.setContents(data, types, clipboardType);
 }
@@ -8749,6 +8760,15 @@ public boolean setFocus() {
 
 private boolean hasMultipleCarets() {
 	return carets != null && carets.length > 1;
+}
+
+/**
+ * See {@link TextLayout#setFixedLineMetrics}
+ *
+ * @since 3.125
+ */
+public void setFixedLineMetrics(FontMetrics metrics) {
+	renderer.setFixedLineMetrics (metrics);
 }
 
 /**

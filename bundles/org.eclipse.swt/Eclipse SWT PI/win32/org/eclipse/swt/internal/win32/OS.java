@@ -39,6 +39,7 @@ public class OS extends C {
 	/**
 	 * Values taken from https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_versions
 	 */
+	public static final int WIN32_BUILD_WIN10_1607 = 14393; // "Windows 10 August 2016 Update"
 	public static final int WIN32_BUILD_WIN10_1809 = 17763; // "Windows 10 October 2018 Update"
 	public static final int WIN32_BUILD_WIN10_2004 = 19041; // "Windows 10 May 2020 Update"
 	public static final int WIN32_BUILD_WIN11_21H2 = 22000; // Initial Windows 11 release
@@ -452,6 +453,7 @@ public class OS extends C {
 	public static final int EP_EDITTEXT = 1;
 	public static final int ERROR_FILE_NOT_FOUND = 0x2;
 	public static final int ERROR_NO_MORE_ITEMS = 0x103;
+	public static final int ERROR_CANCELED = 0x4C7;
 	public static final int ESB_DISABLE_BOTH = 0x3;
 	public static final int ESB_ENABLE_BOTH = 0x0;
 	public static final int ES_AUTOHSCROLL = 0x80;
@@ -2974,6 +2976,7 @@ public static final native long GetSysColorBrush (int nIndex);
 /** @param hWnd cast=(HWND) */
 public static final native long GetSystemMenu (long hWnd, boolean bRevert);
 public static final native int GetSystemMetrics (int nIndex);
+public static final native int GetSystemMetricsForDpi (int nIndex, int dpi);
 /** @param hDC cast=(HDC) */
 public static final native int GetTextColor (long hDC);
 /**
@@ -4435,6 +4438,7 @@ public static final native boolean SystemParametersInfo (int uiAction, int uiPar
 public static final native boolean SystemParametersInfo (int uiAction, int uiParam, RECT pvParam, int fWinIni);
 public static final native boolean SystemParametersInfo (int uiAction, int uiParam, NONCLIENTMETRICS pvParam, int fWinIni);
 public static final native boolean SystemParametersInfo (int uiAction, int uiParam, int [] pvParam, int fWinIni);
+public static final native boolean SystemParametersInfoForDpi (int uiAction, int uiParam, NONCLIENTMETRICS pvParam, int fWinIni, int dpi);
 /**
  * @param lpKeyState cast=(PBYTE)
  * @param pwszBuff cast=(LPWSTR)

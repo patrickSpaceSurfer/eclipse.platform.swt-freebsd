@@ -260,7 +260,11 @@ public class SWT {
 	/**
 	 * The dispose event type (value is 12).<br>
 	 * <br>
-	 * Note: {@link Display} still runs {@link Display#readAndDispatch}
+	 * Note: This event is sent to indicate the beginning of the
+	 * disposing process. For a {@link Composite} this event is
+	 * sent before it is sent to its children, before any child
+	 * has been disposed.
+	 * {@link Display} still runs {@link Display#readAndDispatch}
 	 * after sending this event. If you want to dispose any resources,
 	 * this might cause problems. Use {@link Display#disposeExec}
 	 * instead.
@@ -2554,7 +2558,7 @@ public class SWT {
 	 * @deprecated Support for Chromium was limited to ancient and full of CVEs version of Chromium.
 	 * See <a href="https://bugs.eclipse.org/bugs/show_bug.cgi?id=572010">bug report</a> for details
 	 */
-	@Deprecated
+	@Deprecated(forRemoval = true, since = "2024-03")
 	public static final int CHROMIUM = 1 << 17;
 
 	/**

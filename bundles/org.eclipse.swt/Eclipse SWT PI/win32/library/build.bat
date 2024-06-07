@@ -1,5 +1,5 @@
 @rem ***************************************************************************
-@rem Copyright (c) 2000, 2021 IBM Corporation and others.
+@rem Copyright (c) 2000, 2024 IBM Corporation and others.
 @rem
 @rem This program and the accompanying materials
 @rem are made available under the terms of the Eclipse Public License 2.0
@@ -13,15 +13,10 @@
 @rem ***************************************************************************
 
 @rem The original build.bat source is located in /org.eclipse.swt/Eclipse SWT PI/win32/library/build.bat. It is copied during various build(s).
-@rem Typically it's not ran directly, instead it is reached by build.xml's build_libraries target found in eclipse.platform.swt.binaries\bundles\org.eclipse.swt.win32.win32.x86*
 
 @echo off
 echo
 echo INFO Starting build of binaries. Detailed system setup instructions can be found in /Readme.Win32.md
-
-@rem SWT_BUILDDIR defaults to "W:" on the SWT Windows native build infrastructure machine.
-IF "x.%SWT_BUILDDIR%"=="x." set "SWT_BUILDDIR=W:"
-echo SWT build dir: %SWT_BUILDDIR%
 
 @rem Specify VisualStudio Edition: 'Community', 'Enterprise', 'Professional' etc.
 IF "x.%MSVC_EDITION%"=="x." set "MSVC_EDITION=auto"
@@ -32,13 +27,8 @@ IF "x.%MSVC_VERSION%"=="x." set "MSVC_VERSION=auto"
 @rem Search for a usable Visual Studio
 @rem ---------------------------------
 IF "%MSVC_HOME%"=="" CALL :ECHO "'MSVC_HOME' was not provided, auto-searching for Visual Studio..."
-@rem Bug 572308: Path used on older SWT build machines
-IF "%MSVC_HOME%"=="" CALL :FindVisualStudio "%SWT_BUILDDIR%\Microsoft\Visual Studio\$MSVC_VERSION$"
-@rem Bug 574007: Path used on Azure build machines
-IF "%MSVC_HOME%"=="" CALL :FindVisualStudio "%ProgramFiles(x86)%\Microsoft Visual Studio\$MSVC_VERSION$\BuildTools"
 @rem Bug 578519: Common installation paths; VisualStudio is installed in x64 ProgramFiles since VS2022
-IF "%MSVC_HOME%"=="" CALL :FindVisualStudio      "%ProgramFiles%\Microsoft Visual Studio\$MSVC_VERSION$\$MSVC_EDITION$"
-@rem Bug 578519: Common installation paths; VisualStudio is installed in x86 ProgramFiles before VS2022
+IF "%MSVC_HOME%"=="" CALL :FindVisualStudio "%ProgramFiles%\Microsoft Visual Studio\$MSVC_VERSION$\$MSVC_EDITION$"
 IF "%MSVC_HOME%"=="" CALL :FindVisualStudio "%ProgramFiles(x86)%\Microsoft Visual Studio\$MSVC_VERSION$\$MSVC_EDITION$"
 @rem Report
 IF NOT EXIST "%MSVC_HOME%" (
@@ -51,21 +41,44 @@ IF NOT EXIST "%MSVC_HOME%" (
 @rem Check for a usable JDK
 IF "%SWT_JAVA_HOME%"=="" CALL :ECHO "'SWT_JAVA_HOME' was not provided"
 IF NOT EXIST "%SWT_JAVA_HOME%" (
-    CALL :ECHO "WARNING: x64 Java JDK not found. Please set SWT_JAVA_HOME to the JDK directory containing the intended JDK native headers."
+    CALL :ECHO "WARNING: 64-bit Java JDK not found. Please set SWT_JAVA_HOME to the JDK directory containing the intended JDK native headers."
 )
 
-@rem -----------------------
-IF NOT "x.%1"=="x.x86_64" (
-	CALL :ECHO "ERROR: 32-bit builds are no longer supported."
-	EXIT /B 1
+@REM Compose host architecture string for MSVC
+IF "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+  SET HOST_ARCH=x64
+) ELSE IF "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+  SET HOST_ARCH=arm64
+) ELSE (
+  CALL :ECHO "ERROR: Unknown host architecture: %PROCESSOR_ARCHITECTURE%."
+  EXIT /B 1
 )
 
-set PROCESSOR_ARCHITECTURE=AMD64
-IF "x.%OUTPUT_DIR%"=="x." set OUTPUT_DIR=..\..\..\org.eclipse.swt.win32.win32.x86_64
+@REM %TARGET_ARCH% may be specified by the caller for cross-compiling.
+@REM If not, build for builder machine's architecture
+IF "%TARGET_ARCH%"=="" (
+  SET TARGET_ARCH=%HOST_ARCH%
+)
+
+@REM Compose build argument for MSVC
+IF "%TARGET_ARCH%"=="%HOST_ARCH%" (
+  SET BUILD_ARCH=%TARGET_ARCH%
+) ELSE (
+  SET BUILD_ARCH=%HOST_ARCH%_%TARGET_ARCH%
+)
+
+@REM Select build's output directory (if not specified) based on target arch
+IF "%TARGET_ARCH%"=="x64" (
+  IF "x.%OUTPUT_DIR%"=="x." SET OUTPUT_DIR=..\..\..\org.eclipse.swt.win32.win32.x86_64
+) ELSE IF "%TARGET_ARCH%"=="arm64" (
+  IF "x.%OUTPUT_DIR%"=="x." SET OUTPUT_DIR=..\..\..\org.eclipse.swt.win32.win32.aarch64
+) ELSE (
+  CALL :ECHO "ERROR: Unknown target architecture: %TARGET_ARCH%."
+  EXIT /B 1
+)
 
 set CFLAGS=-DJNI64
-call "%MSVC_HOME%\VC\Auxiliary\Build\vcvarsall.bat" x64
-shift
+call "%MSVC_HOME%\VC\Auxiliary\Build\vcvarsall.bat" %BUILD_ARCH%
 
 @rem if call to vcvarsall.bat (which sets up environment) silently fails, then provide advice to user.
 WHERE cl
@@ -86,9 +99,6 @@ GOTO :EOF
 @rem Find Visual Studio
 @rem %1 = path template with '$MSVC_VERSION$' and '$MSVC_EDITION$' tokens
 :FindVisualStudio
-	@rem Early return if already found
-	IF NOT "%MSVC_HOME%"=="" GOTO :EOF
-
 	IF "%MSVC_VERSION%"=="auto" (
 		CALL :FindVisualStudio2 "%~1" "2022"
 		CALL :FindVisualStudio2 "%~1" "2019"
@@ -102,9 +112,6 @@ GOTO :EOF
 @rem %1 = path template with '$MSVC_VERSION$' and '$MSVC_EDITION$' tokens
 @rem %2 = value for '$MSVC_VERSION$'
 :FindVisualStudio2
-	@rem Early return if already found
-	IF NOT "%MSVC_HOME%"=="" GOTO :EOF
-
 	IF "%MSVC_EDITION%"=="auto" (
 		CALL :FindVisualStudio3 "%~1" "%~2" "Community"
 		CALL :FindVisualStudio3 "%~1" "%~2" "Enterprise"

@@ -75,6 +75,8 @@ public class Button extends Control {
 		WNDCLASS lpWndClass = new WNDCLASS ();
 		OS.GetClassInfo (0, ButtonClass, lpWndClass);
 		ButtonProc = lpWndClass.lpfnWndProc;
+
+		DPIZoomChangeRegistry.registerHandler(Button::handleDPIChange, Button.class);
 	}
 
 /**
@@ -240,11 +242,7 @@ void _setText (String text) {
  * @see SelectionEvent
  */
 public void addSelectionListener (SelectionListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Selection,typedListener);
-	addListener (SWT.DefaultSelection,typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 @Override
@@ -285,7 +283,7 @@ int computeLeftMargin () {
 	if ((style & (SWT.PUSH | SWT.TOGGLE)) == 0) return MARGIN;
 	int margin = 0;
 	if (image != null && text.length () != 0) {
-		Rectangle bounds = image.getBoundsInPixels ();
+		Rectangle bounds = DPIUtil.autoScaleBounds(image.getBounds(), this.getZoom(), 100);
 		margin += bounds.width + MARGIN * 2;
 		long oldFont = 0;
 		long hDC = OS.GetDC (handle);
@@ -299,7 +297,15 @@ int computeLeftMargin () {
 		if (newFont != 0) OS.SelectObject (hDC, oldFont);
 		OS.ReleaseDC (handle, hDC);
 		OS.GetClientRect (handle, rect);
-		margin = Math.max (MARGIN, (rect.right - rect.left - margin) / 2);
+		if ((style & SWT.LEFT) != 0) {
+			margin = MARGIN;
+		}
+		else if ((style & SWT.RIGHT) != 0) {
+			margin = Math.max (MARGIN, (rect.right - rect.left - margin - MARGIN));
+		}
+		else {
+			margin = Math.max (MARGIN, (rect.right - rect.left - margin) / 2);
+		}
 	}
 	return margin;
 }
@@ -339,7 +345,7 @@ int computeLeftMargin () {
 			boolean hasImage = image != null, hasText = true;
 			if (hasImage) {
 				if (image != null) {
-					Rectangle rect = image.getBoundsInPixels ();
+					Rectangle rect = DPIUtil.autoScaleBounds(image.getBounds(), this.getZoom(), 100);
 					width = rect.width;
 					if (hasText && text.length () != 0) {
 						width += MARGIN * 2;
@@ -1107,7 +1113,24 @@ LRESULT wmColorChild (long wParam, long lParam) {
 		// Button has "transparent" portions which need to be filled with
 		// parent's (and not Button's) background. For example, SWT.PUSH
 		// button ~2px transparent area around the button.
-		return parent.wmColorChild(wParam, lParam);
+
+		// Issue 848: Control.wmColorChild() contains a hack that paints entire
+		// rectangle if THEME_BACKGROUND is set. This causes problems when
+		// Windows sends WM_CTLCOLORBTN without repainting entire button -
+		// in this case, button "disappears" until painted again.
+		// It for example happens when all of:
+		// * Button is inside TabFolder
+		// * no background colors are set
+		// * alt key is pressed
+		// The workaround is to temporarily disable parent's 'THEME_BACKGROUND'
+		// to disable this hack.
+		final int oldFlag = parent.state & THEME_BACKGROUND;
+		try {
+			parent.state &= ~THEME_BACKGROUND;
+			return parent.wmColorChild(wParam, lParam);
+		} finally {
+			parent.state |= oldFlag;
+		}
 	}
 }
 
@@ -1355,11 +1378,12 @@ LRESULT wmNotifyChild (NMHDR hdr, long wParam, long lParam) {
 							GC gc = GC.win32_new (nmcd.hdc, data);
 
 							int margin = computeLeftMargin();
-							int imageWidth = image.getBoundsInPixels().width;
+							Rectangle imageBounds = DPIUtil.autoScaleBounds(image.getBounds(), this.getZoom(), 100);
+							int imageWidth = imageBounds.width;
 							left += (imageWidth + (isRadioOrCheck() ? 2 * MARGIN : MARGIN)); // for SWT.RIGHT_TO_LEFT right and left are inverted
 
 							int x = margin + (isRadioOrCheck() ? radioOrCheckTextPadding : 3);
-							int y = Math.max (0, (nmcd.bottom - image.getBoundsInPixels().height) / 2);
+							int y = Math.max (0, (nmcd.bottom - imageBounds.height) / 2);
 							gc.drawImage (image, DPIUtil.autoScaleDown(x), DPIUtil.autoScaleDown(y));
 							gc.dispose ();
 						}
@@ -1522,4 +1546,14 @@ LRESULT wmDrawChild (long wParam, long lParam) {
 	return null;
 }
 
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof Button button)) {
+		return;
+	}
+	// Refresh the image
+	if (button.image != null) {
+		button._setImage(Image.win32_new(button.image, newZoom));
+		button.updateImageList();
+	}
+}
 }

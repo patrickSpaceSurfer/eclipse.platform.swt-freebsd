@@ -21,6 +21,7 @@ import java.net.*;
 import java.util.*;
 import java.util.Map.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 import java.util.function.*;
 import java.util.regex.*;
 import java.util.regex.Pattern;
@@ -5989,22 +5990,21 @@ public void syncExec (Runnable runnable) {
  */
 public <T, E extends Exception> T syncCall(SwtCallable<T, E> callable) throws E {
 	Objects.nonNull(callable);
-	@SuppressWarnings("unchecked")
-	T[] t = (T[]) new Object[1];
-	Object[] ex = new Object[1];
+	AtomicReference<T> result = new AtomicReference<>();
+	AtomicReference<Exception> ex = new AtomicReference<>();
 	syncExec(() -> {
 		try {
-			t[0] = callable.call();
+			result.setPlain(callable.call());
 		} catch (Exception e) {
-			ex[0] = e;
+			ex.setPlain(e);
 		}
 	});
-	if (ex[0] != null) {
+	if (ex.getPlain() != null) {
 		@SuppressWarnings("unchecked")
-		E e = (E) ex[0];
+		E e = (E) ex.getPlain();
 		throw e;
 	}
-	return t[0];
+	return result.getPlain();
 }
 
 static int translateKey (int key) {
@@ -6203,7 +6203,27 @@ long getWindowPointerPosition(long window, int[] x, int[] y, int[] mask) {
 	}
 
 	long pointer = GDK.gdk_get_pointer(display);
-	return GDK.gdk_window_get_device_position(window, pointer, x, y, mask);
+	if (OS.isWayland()) {
+		// Read the current mask value, but not the position. The position is not reliable on Wayland because
+		// the origin of the coordinates returned may change depending on the currently focused window.
+		// For instance, if a popup window is currently focused and this method is called with a window outside
+		// of the popup window, the returned coordinates are in relation to the root coordinate system of the
+		// popup (possibly negative values). See also issue GH-177.
+		GDK.gdk_window_get_device_position(window, pointer, null, null, mask);
+		var windowAtPosition = GDK.gdk_device_get_window_at_position(pointer, x, y);
+		if (windowAtPosition != 0 && windowAtPosition != window) {
+			int[] origin_x = new int[1], origin_y = new int[1];
+			GDK.gdk_window_get_origin(windowAtPosition, origin_x, origin_y);
+			x[0] += origin_x[0];
+			y[0] += origin_y[0];
+			GDK.gdk_window_get_origin(window, origin_x, origin_y);
+			x[0] -= origin_x[0];
+			y[0] -= origin_y[0];
+		}
+		return windowAtPosition;
+	} else {
+		return GDK.gdk_window_get_device_position(window, pointer, x, y, mask);
+	}
 }
 
 /**

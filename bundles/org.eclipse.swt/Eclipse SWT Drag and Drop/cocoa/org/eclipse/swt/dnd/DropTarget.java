@@ -14,6 +14,7 @@
 package org.eclipse.swt.dnd;
 
 import java.util.*;
+import java.util.List;
 
 import org.eclipse.swt.*;
 import org.eclipse.swt.graphics.*;
@@ -77,7 +78,6 @@ import org.eclipse.swt.widgets.*;
  * @see <a href="http://www.eclipse.org/swt/">Sample code and further information</a>
  * @noextend This class is not intended to be subclassed by clients.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
 public class DropTarget extends Widget {
 
 	static Callback dropTarget2Args, dropTarget3Args, dropTarget6Args;
@@ -85,7 +85,7 @@ public class DropTarget extends Widget {
 	static final String LOCK_CURSOR = "org.eclipse.swt.internal.lockCursor"; //$NON-NLS-1$
 
 	static {
-		Class clazz = DropTarget.class;
+		Class<?> clazz = DropTarget.class;
 
 		dropTarget2Args = new Callback(clazz, "dropTargetProc", 2);
 		proc2Args = dropTarget2Args.getAddress();
@@ -104,6 +104,7 @@ public class DropTarget extends Widget {
 	Transfer[] transferAgents = new Transfer[0];
 	DropTargetEffect dropEffect;
 	int feedback = DND.FEEDBACK_NONE;
+	boolean labelDragHandlersAdded = false;
 
 	// Track application selections
 	TransferData selectedDataType;
@@ -115,33 +116,58 @@ public class DropTarget extends Widget {
 	static final String DEFAULT_DROP_TARGET_EFFECT = "DEFAULT_DROP_TARGET_EFFECT"; //$NON-NLS-1$
 	static final String IS_ACTIVE = "org.eclipse.swt.internal.isActive"; //$NON-NLS-1$
 
-void addDragHandlers() {
-	// Our strategy here is to dynamically add methods to the control's class that are required
-	// by NSDraggingDestination. Then, when setTransfer is called, we just register
-	// the types with the Control's NSView and AppKit will call the methods in the protocol
-	// when a drag goes over the view.
+	/**
+	 * Recursively traverses the hierarchy of a control to handle labels with image
+	 * views.
+	 * If the child of a control is a label with an image view, drag handlers are added for
+	 * the corresponding label class to enable it to act as a drop target.
+	 * @param c the Control whose hierarchy needs to be iterated to check for label with imageView
+	 */
+void handleLabels(Control c) {
+	if (labelDragHandlersAdded) return;
+	if (c instanceof Label) {
+		long labelViewClass = OS.object_getClass(c.view.id);
+		// adding the handlers to label class
+		addDragHandlers(labelViewClass);
+		/*
+		 * If the content view can be an image view, then add the dragging methods to
+		 * the image view too. This is used by Label so that dragging can work even when
+		 * the Label has an image set on it.
+		 */
+		long imageView = 0;
+		if ((imageView = OS.objc_msgSend(c.view.id, OS.sel_getImageView)) != 0) {
+			long cls = OS.object_getClass(imageView);
+			addDragHandlers(cls);
+			labelDragHandlersAdded = true;
+		}
+	} else if (c instanceof Composite) {
+		Control[] cal = ((Composite) c).getChildren();
+		for (Control child : cal) {
+			handleLabels(child);
+		}
+	}
+}
 
+void addDragHandlers() {
+	/*
+	 * Our strategy here is to dynamically add methods to the control's class that
+	 * are required by NSDraggingDestination. Then, when setTransfer is called, we
+	 * just register the types with the Control's NSView and AppKit will call the
+	 * methods in the protocol when a drag goes over the view.
+	 */
 	long cls = OS.object_getClass(control.view.id);
 
 	if (cls == 0) {
 		DND.error(DND.ERROR_CANNOT_INIT_DROP);
 	}
-
-	// If we already added it, no need to do it again.
-	long procPtr = OS.class_getMethodImplementation(cls, OS.sel_draggingEntered_);
-	if (procPtr == proc3Args) return;
 	addDragHandlers(cls);
-
-	// If the content view can be image view, then add the dragging methods to image view too.
-	// This is used by Label so that dragging can work even when the Label has an image set on it.
-	long imageView = 0;
-	if ((imageView = OS.objc_msgSend(control.view.id, OS.sel_getImageView)) != 0) {
-		cls = OS.object_getClass(imageView);
-		addDragHandlers(cls);
-	}
+	handleLabels(control);
 }
 
 void addDragHandlers (long cls) {
+	// If we already added it, no need to do it again.
+	long procPtr = OS.class_getMethodImplementation(cls, OS.sel_draggingEntered_);
+	if (procPtr == proc3Args) return;
 	// Add the NSDraggingDestination callbacks
 	OS.class_addMethod(cls, OS.sel_draggingEntered_, proc3Args, "@:@");
 	OS.class_addMethod(cls, OS.sel_draggingUpdated_, proc3Args, "@:@");
@@ -434,7 +460,21 @@ static long dropTargetProc(long id, long sel, long arg0) {
 	if (display == null || display.isDisposed()) return 0;
 	Widget widget = display.findWidget(id);
 	if (widget == null) return 0;
-	DropTarget dt = (DropTarget)widget.getData(DND.DROP_TARGET_KEY);
+	Widget tempWidget = widget;
+	DropTarget dt = (DropTarget) tempWidget.getData(DND.DROP_TARGET_KEY);
+	if (dt == null && tempWidget instanceof Label) {
+		while (tempWidget != null && !(tempWidget instanceof Shell)) {
+		    dt = (DropTarget) tempWidget.getData(DND.DROP_TARGET_KEY);
+		    if (dt != null) {
+		        break;
+		    }
+		    if (tempWidget instanceof Control) {
+		        Composite widgetParent = ((Control) tempWidget).getParent();
+		        tempWidget = widgetParent;
+		    }
+		    else break;
+		}
+	}
 	if (dt == null) return 0;
 
 	// arg0 is _always_ the sender, and implements NSDraggingInfo.
@@ -506,21 +546,7 @@ public Control getControl () {
  * @since 3.4
  */
 public DropTargetListener[] getDropListeners() {
-	Listener[] listeners = getListeners(DND.DragEnter);
-	int length = listeners.length;
-	DropTargetListener[] dropListeners = new DropTargetListener[length];
-	int count = 0;
-	for (int i = 0; i < length; i++) {
-		Listener listener = listeners[i];
-		if (listener instanceof DNDListener) {
-			dropListeners[count] = (DropTargetListener) ((DNDListener) listener).getEventListener();
-			count++;
-		}
-	}
-	if (count == length) return dropListeners;
-	DropTargetListener[] result = new DropTargetListener[count];
-	System.arraycopy(dropListeners, 0, result, 0, count);
-	return result;
+	return getTypedListeners(DND.DragEnter, DropTargetListener.class).toArray(DropTargetListener[]::new);
 }
 
 /**
@@ -798,12 +824,12 @@ long outlineView_validateDrop_proposedItem_proposedChildIndex(long id, long sel,
  */
 public void removeDropListener(DropTargetListener listener) {
 	if (listener == null) DND.error (SWT.ERROR_NULL_ARGUMENT);
-	removeListener (DND.DragEnter, listener);
-	removeListener (DND.DragLeave, listener);
-	removeListener (DND.DragOver, listener);
-	removeListener (DND.DragOperationChanged, listener);
-	removeListener (DND.Drop, listener);
-	removeListener (DND.DropAccept, listener);
+	removeTypedListener(DND.DragEnter, listener);
+	removeTypedListener(DND.DragLeave, listener);
+	removeTypedListener(DND.DragOver, listener);
+	removeTypedListener(DND.DragOperationChanged, listener);
+	removeTypedListener(DND.Drop, listener);
+	removeTypedListener(DND.DropAccept, listener);
 }
 
 /**
@@ -916,7 +942,7 @@ public void setTransfer(Transfer... transferAgents){
 
 	// Register the types as valid drop types in Cocoa.
 	// Accumulate all of the transfer types into a list.
-	ArrayList typeStrings = new ArrayList();
+	List<String> typeStrings = new ArrayList<>();
 
 	for (int i = 0; i < this.transferAgents.length; i++) {
 		String[] types = transferAgents[i].getTypeNames();

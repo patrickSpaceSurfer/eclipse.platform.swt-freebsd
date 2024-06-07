@@ -38,7 +38,7 @@ jobs:
            done
 
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@ca89ad036b5fcd524c1017287fb01b5139908408 # v2.11.0
+        uses: EnricoMi/publish-unit-test-result-action@30eadd5010312f995f0d3b3cff7fe2984f69409e # v2.16.1
         id: test-results
         with:
           commit: ${{ github.event.workflow_run.head_sha }}
@@ -63,7 +63,7 @@ jobs:
 
       - name: Create badge
         if: github.ref == 'refs/heads/master'
-        uses: emibcn/badge-action@4209421db54c8764d8932070ffd0f81715a629bf
+        uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8
         with:
           label: Tests
           status: '${{ fromJSON( steps.test-results.outputs.json ).stats.tests }} tests, ${{ fromJSON( steps.test-results.outputs.json ).stats.runs }} runs: ${{ fromJSON( steps.test-results.outputs.json ).conclusion }}'
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload badge to Gist
         if: github.ref == 'refs/heads/master'
-        uses: andymckay/append-gist-action@6e8d64427fe47cbacf4ab6b890411f1d67c07f3e
+        uses: andymckay/append-gist-action@ab30bf28df67017c7ad696500b218558c7c04db3
         with:
           token: ${{ secrets.GIST_TOKEN }}
           gistURL: https://gist.githubusercontent.com/eclipse-releng-bot/78d110a601baa4ef777ccb472f584038

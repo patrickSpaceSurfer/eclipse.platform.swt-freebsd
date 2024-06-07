@@ -69,6 +69,10 @@ public class Menu extends Widget {
 	/* Timer ID for MenuItem ToolTip */
 	static final int ID_TOOLTIP_TIMER = 110;
 
+	static {
+		DPIZoomChangeRegistry.registerHandler(Menu::handleDPIChange, Menu.class);
+	}
+
 /**
  * Constructs a new instance of this class given its parent,
  * and sets the style for the instance so that the instance
@@ -274,10 +278,7 @@ void _setVisible (boolean visible) {
  * @see #removeHelpListener
  */
 public void addHelpListener (HelpListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Help, typedListener);
+	addTypedListener(listener, SWT.Help);
 }
 
 /**
@@ -300,11 +301,7 @@ public void addHelpListener (HelpListener listener) {
  * @see #removeMenuListener
  */
 public void addMenuListener (MenuListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Hide,typedListener);
-	addListener (SWT.Show,typedListener);
+	addTypedListener(listener, SWT.Hide, SWT.Show);
 }
 
 static Control checkNull (Control control) {
@@ -1368,5 +1365,14 @@ LRESULT wmTimer (long wParam, long lParam) {
 	}
 
 	return null;
+}
+
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof Menu menu)) {
+		return;
+	}
+	for (MenuItem item : menu.getItems()) {
+		DPIZoomChangeRegistry.applyChange(item, newZoom, scalingFactor);
+	}
 }
 }

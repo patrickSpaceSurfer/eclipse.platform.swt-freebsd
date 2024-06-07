@@ -44,6 +44,10 @@ public class TableColumn extends Item {
 	String toolTipText;
 	int id;
 
+	static {
+		DPIZoomChangeRegistry.registerHandler(TableColumn::handleDPIChange, TableColumn.class);
+	}
+
 /**
  * Constructs a new instance of this class given its parent
  * (which must be a <code>Table</code>) and a style value
@@ -147,11 +151,7 @@ public TableColumn (Table parent, int style, int index) {
  * @see #removeControlListener
  */
 public void addControlListener(ControlListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Resize,typedListener);
-	addListener (SWT.Move,typedListener);
+	addTypedListener(listener, SWT.Resize, SWT.Move);
 }
 
 /**
@@ -179,11 +179,7 @@ public void addControlListener(ControlListener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener (SelectionListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Selection,typedListener);
-	addListener (SWT.DefaultSelection,typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 static int checkStyle (int style) {
@@ -891,4 +887,15 @@ void updateToolTip (int index) {
 	}
 }
 
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof TableColumn tableColumn)) {
+		return;
+	}
+	final int newColumnWidth = Math.round(tableColumn.getWidthInPixels() * scalingFactor);
+	tableColumn.setWidthInPixels(newColumnWidth);
+	Image image = tableColumn.getImage();
+	if (image != null) {
+		tableColumn.setImage(Image.win32_new(image, newZoom));
+	}
+}
 }

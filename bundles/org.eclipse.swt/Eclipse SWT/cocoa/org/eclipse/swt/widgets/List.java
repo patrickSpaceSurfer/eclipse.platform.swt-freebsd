@@ -46,6 +46,8 @@ public class List extends Scrollable {
 	int itemCount;
 	boolean ignoreSelect, didSelect, rowsChanged, mouseIsDown;
 
+	final int nativeItemHeight;
+
 	static int NEXT_ID;
 
 	static final int CELL_GAP = 1;
@@ -81,6 +83,9 @@ public class List extends Scrollable {
  */
 public List (Composite parent, int style) {
 	super (parent, checkStyle (style));
+
+	this.nativeItemHeight = (int)((NSTableView)view).rowHeight();
+	setFont(defaultFont ().handle); // update height
 }
 
 @Override
@@ -202,11 +207,7 @@ public void add (String string, int index) {
  * @see SelectionEvent
  */
 public void addSelectionListener(SelectionListener listener) {
-	checkWidget();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener(listener);
-	addListener(SWT.Selection,typedListener);
-	addListener(SWT.DefaultSelection,typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 static int checkStyle (int style) {
@@ -1179,7 +1180,11 @@ void setFont (NSFont font) {
 	super.setFont (font);
 	double ascent = font.ascender ();
 	double descent = -font.descender () + font.leading ();
-	((NSTableView)view).setRowHeight ((int)Math.ceil (ascent + descent) + 1);
+	int height = (int)Math.ceil (ascent + descent) + 1;
+	if (display.useNativeItemHeight) {
+		height = Math.max (height, nativeItemHeight);
+	}
+	((NSTableView)view).setRowHeight (height);
 	setScrollWidth();
 }
 

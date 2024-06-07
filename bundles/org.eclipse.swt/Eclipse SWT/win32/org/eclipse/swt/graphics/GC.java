@@ -323,24 +323,26 @@ void checkGC(int mask) {
 			data.gdipFont = gdipFont;
 		}
 		if ((state & DRAW_OFFSET) != 0) {
-			data.gdipXOffset = data.gdipYOffset = 0;
-			long matrix = Gdip.Matrix_new(1, 0, 0, 1, 0, 0);
-			PointF point = new PointF();
-			point.X = point.Y = 1;
-			Gdip.Graphics_GetTransform(gdipGraphics, matrix);
-			Gdip.Matrix_TransformVectors(matrix, point, 1);
-			Gdip.Matrix_delete(matrix);
-			float scaling = point.X;
-			if (scaling < 0) scaling = -scaling;
-			float penWidth = data.lineWidth * scaling;
-			if (penWidth == 0 || (((int)penWidth) & 1) == 1) {
-				data.gdipXOffset = 0.5f / scaling;
-			}
-			scaling = point.Y;
-			if (scaling < 0) scaling = -scaling;
-			penWidth = data.lineWidth * scaling;
-			if (penWidth == 0 || (((int)penWidth) & 1) == 1) {
-				data.gdipYOffset = 0.5f / scaling;
+			int effectiveLineWidth = data.lineWidth < 1 ? 1 : Math.round(data.lineWidth);
+			if (effectiveLineWidth % 2 == 1) {
+				PointF offset = new PointF();
+				// In case the effective line width is odd, shift coordinates by (0.5, 0.5).
+				// I.e., a line starting at (0,0) will effectively start in the pixel right
+				// below that coordinate with its center at (0.5, 0.5).
+				offset.X = offset.Y = 0.5f;
+				// The offset will be applied to the coordinate system of the GC; so transform
+				// it from the drawing coordinate system to the coordinate system of the GC by
+				// applying the inverse transformation as the one applied to the GC and correct
+				// it by the line width.
+				long newMatrix = Gdip.Matrix_new(1, 0, 0, 1, 0, 0);
+				Gdip.Graphics_GetTransform(gdipGraphics, newMatrix);
+				Gdip.Matrix_Invert(newMatrix);
+				Gdip.Matrix_TransformVectors(newMatrix, offset, 1);
+				Gdip.Matrix_delete(newMatrix);
+				data.gdipXOffset = Math.abs(offset.X);
+				data.gdipYOffset = Math.abs(offset.Y);
+			} else {
+				data.gdipXOffset = data.gdipYOffset = 0;
 			}
 		}
 		return;
@@ -978,7 +980,7 @@ public void drawImage (Image image, int srcX, int srcY, int srcWidth, int srcHei
 		 * the coordinates may be slightly off. The workaround is to restrict
 		 * coordinates to the allowed bounds.
 		 */
-		Rectangle b = image.getBoundsInPixels();
+		Rectangle b = image.getBounds(deviceZoom);
 		int errX = src.x + src.width - b.width;
 		int errY = src.y + src.height - b.height;
 		if (errX != 0 || errY != 0) {
@@ -994,8 +996,7 @@ public void drawImage (Image image, int srcX, int srcY, int srcWidth, int srcHei
 
 void drawImage(Image srcImage, int srcX, int srcY, int srcWidth, int srcHeight, int destX, int destY, int destWidth, int destHeight, boolean simple) {
 	/* Refresh Image as per zoom level, if required. */
-	srcImage.refreshImageForZoom ();
-
+	srcImage.handleDPIChange(DPIUtil.getDeviceZoom());
 	if (data.gdipGraphics != 0) {
 		//TODO - cache bitmap
 		long [] gdipImage = srcImage.createGdipImage();
@@ -4385,7 +4386,7 @@ public void setFillRule(int rule) {
 public void setFont (Font font) {
 	if (handle == 0) SWT.error(SWT.ERROR_GRAPHIC_DISPOSED);
 	if (font != null && font.isDisposed()) SWT.error(SWT.ERROR_INVALID_ARGUMENT);
-	data.font = font != null ? font : data.device.systemFont;
+	data.font = font != null ? Font.win32_new(font, DPIUtil.getNativeDeviceZoom()) : data.device.systemFont;
 	data.state &= ~FONT;
 }
 

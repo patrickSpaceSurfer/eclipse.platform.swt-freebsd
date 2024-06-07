@@ -162,11 +162,7 @@ public Tracker (Display display, int style) {
  * @see #removeControlListener
  */
 public void addControlListener (ControlListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Resize, typedListener);
-	addListener (SWT.Move, typedListener);
+	addTypedListener(listener, SWT.Resize, SWT.Move);
 }
 
 /**
@@ -189,11 +185,7 @@ public void addControlListener (ControlListener listener) {
  * @see #removeKeyListener
  */
 public void addKeyListener(KeyListener listener) {
-	checkWidget();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener(SWT.KeyUp,typedListener);
-	addListener(SWT.KeyDown,typedListener);
+	addTypedListener(listener, SWT.KeyUp, SWT.KeyDown);
 }
 
 Point adjustMoveCursor () {
@@ -249,36 +241,14 @@ Point adjustResizeCursor (boolean movePointer) {
 	* the appropriate resize cursor.
 	*/
 	if (clientCursor == null) {
-		Cursor newCursor = null;
-		switch (cursorOrientation) {
-			case SWT.UP:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENS);
-				break;
-			case SWT.DOWN:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENS);
-				break;
-			case SWT.LEFT:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZEWE);
-				break;
-			case SWT.RIGHT:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZEWE);
-				break;
-			case SWT.LEFT | SWT.UP:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENWSE);
-				break;
-			case SWT.RIGHT | SWT.DOWN:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENWSE);
-				break;
-			case SWT.LEFT | SWT.DOWN:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENESW);
-				break;
-			case SWT.RIGHT | SWT.UP:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZENESW);
-				break;
-			default:
-				newCursor = new Cursor(display, SWT.CURSOR_SIZEALL);
-				break;
-		}
+		Cursor newCursor = new Cursor(display, switch (cursorOrientation) {
+		  case SWT.UP, SWT.DOWN -> SWT.CURSOR_SIZENS;
+		  case SWT.LEFT, SWT.RIGHT -> SWT.CURSOR_SIZEWE;
+		  case (SWT.LEFT | SWT.UP ), (SWT.RIGHT | SWT.DOWN)-> SWT.CURSOR_SIZENWSE;
+		  case (SWT.LEFT | SWT.DOWN), (SWT.RIGHT | SWT.UP) -> SWT.CURSOR_SIZENESW;
+		  default -> SWT.CURSOR_SIZEALL;
+
+		});
 		display.lockCursor = false;
 		newCursor.handle.set();
 		display.lockCursor = true;

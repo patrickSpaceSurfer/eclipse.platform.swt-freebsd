@@ -196,6 +196,7 @@ public class CTabFolder extends Composite {
 	int[] gradientPercents;
 	boolean gradientVertical;
 	boolean showUnselectedImage = true;
+	boolean showSelectedImage = true;
 
 	// close, min/max and chevron buttons
 	boolean showClose = false;
@@ -502,13 +503,7 @@ public void addCTabFolderListener(CTabFolderListener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener(SelectionListener listener) {
-	checkWidget();
-	if (listener == null) {
-		SWT.error(SWT.ERROR_NULL_ARGUMENT);
-	}
-	TypedListener typedListener = new TypedListener(listener);
-	addListener(SWT.Selection, typedListener);
-	addListener(SWT.DefaultSelection, typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 Rectangle[] computeControlBounds (Point size, boolean[][] position) {
@@ -1365,6 +1360,18 @@ public boolean getUnselectedCloseVisible() {
 public boolean getUnselectedImageVisible() {
 	checkWidget();
 	return showUnselectedImage;
+}
+/**
+ * Returns <code>true</code> if an image appears
+ * in selected tabs.
+ *
+ * @return <code>true</code> if an image appears in selected tabs
+ *
+ * @since 3.125
+ */
+public boolean getSelectedImageVisible() {
+	checkWidget();
+	return showSelectedImage;
 }
 /**
  * Return the index of the specified tab or -1 if the tab is not
@@ -2340,8 +2347,8 @@ public void removeSelectionListener(SelectionListener listener) {
 	if (listener == null) {
 		SWT.error(SWT.ERROR_NULL_ARGUMENT);
 	}
-	removeListener(SWT.Selection, listener);
-	removeListener(SWT.DefaultSelection, listener);
+	removeTypedListener(SWT.Selection, listener);
+	removeTypedListener(SWT.DefaultSelection, listener);
 }
 
 @Override
@@ -2716,6 +2723,8 @@ public void setForeground (Color color) {
 	// To apply the new foreground color the image must be recreated with new foreground color.
 	// redraw() alone would only redraw the cached image with old color.
 	updateChevronImage(true);
+	updateMaxImage();
+	updateMinImage();
 	redraw();
 }
 /**
@@ -2959,19 +2968,17 @@ boolean setItemSize(GC gc) {
 	for (int i = 0; i < items.length; i++) {
 		CTabItem tab = items[i];
 		int width = widths[i];
-		if (tab.height != tabHeight || tab.width != width) {
-			changed = true;
-			tab.shortenedText = null;
-			tab.shortenedTextWidth = 0;
-			tab.height = tabHeight;
-			tab.width = width;
-			tab.closeRect.width = tab.closeRect.height = 0;
-			if (showClose || tab.showClose) {
-				if (i == selectedIndex || showUnselectedClose) {
-					Point closeSize = renderer.computeSize(CTabFolderRenderer.PART_CLOSE_BUTTON, SWT.NONE, gc, SWT.DEFAULT, SWT.DEFAULT);
-					tab.closeRect.width = closeSize.x;
-					tab.closeRect.height = closeSize.y;
-				}
+		changed = true;
+		tab.shortenedText = null;
+		tab.shortenedTextWidth = 0;
+		tab.height = tabHeight;
+		tab.width = width;
+		tab.closeRect.width = tab.closeRect.height = 0;
+		if (showClose || tab.showClose) {
+			if (i == selectedIndex || showUnselectedClose) {
+				Point closeSize = renderer.computeSize(CTabFolderRenderer.PART_CLOSE_BUTTON, SWT.NONE, gc, SWT.DEFAULT, SWT.DEFAULT);
+				tab.closeRect.width = closeSize.x;
+				tab.closeRect.height = closeSize.y;
 			}
 		}
 	}
@@ -3694,6 +3701,25 @@ public void setUnselectedImageVisible(boolean visible) {
 	updateFolder(REDRAW);
 }
 /**
+ * Specify whether the image appears on selected tabs.
+ *
+ * @param visible <code>true</code> makes the image appear
+ *
+ * @exception SWTException <ul>
+ *    <li>ERROR_WIDGET_DISPOSED - if the receiver has been disposed</li>
+ *    <li>ERROR_THREAD_INVALID_ACCESS - if not called from the thread that created the receiver</li>
+ * </ul>
+ *
+ * @since 3.125
+ */
+public void setSelectedImageVisible(boolean visible) {
+	checkWidget();
+	if (showSelectedImage == visible) return;
+	// display image on selected items
+	showSelectedImage = visible;
+	updateFolder(REDRAW);
+}
+/**
  * Shows the item.  If the item is already showing in the receiver,
  * this method simply returns.  Otherwise, the items are scrolled until
  * the item is visible.
@@ -4230,5 +4256,25 @@ public void setHighlightEnabled(boolean enabled) {
 public boolean getHighlightEnabled() {
 	checkWidget();
 	return highlightEnabled;
+}
+/**
+ * Update the cached minimize button image when color is changed.
+ */
+private void updateMinImage() {
+	if (showMin && minMaxTb != null && minItem != null)	{
+		if (minImage != null) minImage.dispose();
+		minImage = createButtonImage(getDisplay(), CTabFolderRenderer.PART_MIN_BUTTON);
+		minItem.setImage(minImage);
+	}
+}
+/**
+ * Update the cached maximize button image when color is changed.
+ */
+private void updateMaxImage() {
+	if (showMax && minMaxTb != null && maxItem != null)	{
+		if (maxImage != null) maxImage.dispose();
+		maxImage = createButtonImage(getDisplay(), CTabFolderRenderer.PART_MAX_BUTTON);
+		maxItem.setImage(maxImage);
+	}
 }
 }

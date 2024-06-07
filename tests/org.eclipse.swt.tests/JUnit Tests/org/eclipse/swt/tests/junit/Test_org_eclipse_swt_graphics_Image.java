@@ -875,6 +875,14 @@ void getImageData_int(int zoom) {
 	Rectangle boundsAtZoom = new Rectangle(0, 0, imageDataAtZoom.width, imageDataAtZoom.height);
 	assertEquals(":a: Size of ImageData returned from Image.getImageData(int) method doesn't return matches with bounds in Pixel values.", scaleBounds(bounds, zoom, 100), boundsAtZoom);
 
+	// creates second bitmap image and compare size of imageData
+	image = new Image(display, bounds);
+	imageDataAtZoom = image.getImageData(zoom);
+	boundsAtZoom = new Rectangle(0, 0, imageDataAtZoom.width, imageDataAtZoom.height);
+	bounds = image.getBounds();
+	image.dispose();
+	assertEquals(":a: Size of ImageData returned from Image.getImageData(int) method doesn't return matches with bounds in Pixel values.", scaleBounds(bounds, zoom, 100), boundsAtZoom);
+
 	// create icon image and compare size of imageData
 	ImageData imageData = new ImageData(bounds.width, bounds.height, 1, new PaletteData(new RGB[] {new RGB(0, 0, 0)}));
 	image = new Image(display, imageData);
@@ -1177,4 +1185,23 @@ public void test_bug566545_efficientGrayscaleImage() {
 	outImageDirect.dispose();
 }
 
+@Test
+public void test_updateWidthHeightAfterDPIChange() {
+	int deviceZoom = DPIUtil.getDeviceZoom();
+	try {
+		Rectangle imageSize = new Rectangle(0, 0, 16, 16);
+		Image baseImage = new Image(display, imageSize.width, imageSize.height);
+		GC gc = new GC(display);
+		gc.drawImage(baseImage, 10, 10);
+		assertEquals("Base image size differs unexpectedly", imageSize, baseImage.getBounds());
+
+		DPIUtil.setDeviceZoom(deviceZoom * 2);
+		gc.drawImage(baseImage, 10, 10);
+		assertEquals("Image size at 100% must always stay the same despite the zoom factor", imageSize, baseImage.getBounds());
+		gc.dispose();
+		baseImage.dispose();
+	} finally {
+		DPIUtil.setDeviceZoom(deviceZoom);
+	}
+}
 }

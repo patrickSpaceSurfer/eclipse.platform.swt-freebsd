@@ -86,6 +86,8 @@ public class Table extends Composite {
 	boolean shouldScroll = true;
 	boolean keyDown;
 
+	final int nativeItemHeight;
+
 	static int NEXT_ID;
 
 	static final int FIRST_COLUMN_MINIMUM_WIDTH = 5;
@@ -129,6 +131,9 @@ public class Table extends Composite {
  */
 public Table (Composite parent, int style) {
 	super (parent, checkStyle (style));
+
+	this.nativeItemHeight = (int)((NSTableView)view).rowHeight();
+	setItemHeight(null, null, true);
 }
 
 @Override
@@ -197,11 +202,7 @@ void _addListener (int eventType, Listener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener (SelectionListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Selection, typedListener);
-	addListener (SWT.DefaultSelection, typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 TableItem _getItem (int index) {
@@ -2823,6 +2824,9 @@ void setItemHeight (Image image, NSFont font, boolean set) {
 	double ascent = font.ascender ();
 	double descent = -font.descender () + font.leading ();
 	int height = (int)Math.ceil (ascent + descent) + 1;
+	if (display.useNativeItemHeight) {
+		height = Math.max (height, nativeItemHeight);
+	}
 	Rectangle bounds = image != null ? image.getBounds () : imageBounds;
 	if (bounds != null) {
 		imageBounds = bounds;
@@ -3473,6 +3477,9 @@ void tableViewSelectionDidChange (long id, long sel, long aNotification) {
 
 @Override
 void tableViewSelectionIsChanging (long id, long sel, long aNotification) {
+	// tableViewSelectionIsChanging is called when pressing ARROW_DOWN, ARROW_UP key
+	// don't run sendSelection because it would then gather the "old" incorrect selected row
+	if (keyDown) return;
 	didSelect = true;
 	sendSelection();
 }

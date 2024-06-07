@@ -1,5 +1,10 @@
 bin/
+bin_test/
 *.log
 target/
+/.project
 .polyglot.*
 pom.tycho
+
+/binaries/org.eclipse.swt.*/src/
+tmpdir/

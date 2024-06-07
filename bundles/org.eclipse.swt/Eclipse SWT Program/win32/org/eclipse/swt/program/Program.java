@@ -19,7 +19,9 @@ import java.util.stream.*;
 
 import org.eclipse.swt.*;
 import org.eclipse.swt.graphics.*;
+import org.eclipse.swt.internal.*;
 import org.eclipse.swt.internal.win32.*;
+import org.eclipse.swt.widgets.*;
 
 /**
  * Instances of this class represent programs and
@@ -353,14 +355,35 @@ public boolean execute (String fileName) {
 	return success;
 }
 
+
+
 /**
- * Returns the receiver's image data.  This is the icon
- * that is associated with the receiver in the operating
- * system.
+ * Returns the receiver's image data at 100% zoom level.
+ * This is the icon that is associated with the receiver
+ * in the operating system.
  *
  * @return the image data for the program, may be null
  */
 public ImageData getImageData () {
+  return getImageData (100);
+}
+
+/**
+ * Returns the receiver's image data based on the given zoom level.
+ * This is the icon that is associated with the receiver in the
+ * operating system.
+ *
+ * @param zoom
+ *            The zoom level in % of the standard resolution
+ *
+ * @return the image data for the program, may be null
+ * @since 3.125
+ */
+public ImageData getImageData (int zoom) {
+	// Windows API returns image data according to primary monitor zoom factor
+	// rather than at original scaling
+	int nativeZoomFactor = 100 * Display.getCurrent().getPrimaryMonitor().getZoom() / DPIUtil.getDeviceZoom();
+	int imageZoomFactor = 100 * zoom / nativeZoomFactor;
 	if (extension != null) {
 		SHFILEINFO shfi = new SHFILEINFO ();
 		int flags = OS.SHGFI_ICON | OS.SHGFI_SMALLICON | OS.SHGFI_USEFILEATTRIBUTES;
@@ -368,8 +391,7 @@ public ImageData getImageData () {
 		OS.SHGetFileInfo (pszPath.chars, OS.FILE_ATTRIBUTE_NORMAL, shfi, SHFILEINFO.sizeof, flags);
 		if (shfi.hIcon != 0) {
 			Image image = Image.win32_new (null, SWT.ICON, shfi.hIcon);
-			/* Fetch the ImageData at 100% zoom and return */
-			ImageData imageData = image.getImageData ();
+			ImageData imageData = image.getImageData (imageZoomFactor);
 			image.dispose ();
 			return imageData;
 		}
@@ -395,8 +417,7 @@ public ImageData getImageData () {
 	OS.ExtractIconEx (lpszFile, nIconIndex, phiconLarge, phiconSmall, 1);
 	if (phiconSmall [0] == 0) return null;
 	Image image = Image.win32_new (null, SWT.ICON, phiconSmall [0]);
-	/* Fetch the ImageData at 100% zoom and return */
-	ImageData imageData = image.getImageData ();
+	ImageData imageData = image.getImageData (imageZoomFactor);
 	image.dispose ();
 	return imageData;
 }

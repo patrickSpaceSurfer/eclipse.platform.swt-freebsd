@@ -112,6 +112,7 @@ public class Text extends Scrollable {
 		WNDCLASS lpWndClass = new WNDCLASS ();
 		OS.GetClassInfo (0, EditClass, lpWndClass);
 		EditProc = lpWndClass.lpfnWndProc;
+		DPIZoomChangeRegistry.registerHandler(Text::handleDPIChange, Text.class);
 	}
 
 /**
@@ -336,6 +337,10 @@ void createHandle () {
 			state |= THEME_BACKGROUND;
 		}
 	}
+	addIcons();
+}
+
+private void addIcons() {
 	if ((style & SWT.SEARCH) != 0) {
 		if (display.hIconSearch == 0) {
 			long [] phicon = new long [1];
@@ -404,10 +409,7 @@ int applyThemeBackground () {
  * @see #removeModifyListener
  */
 public void addModifyListener (ModifyListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Modify, typedListener);
+	addTypedListener(listener, SWT.Modify);
 }
 
 /**
@@ -445,9 +447,7 @@ public void addModifyListener (ModifyListener listener) {
  * @since 3.8
  */
 public void addSegmentListener (SegmentListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	addListener (SWT.Segments, new TypedListener (listener));
+	addTypedListener (listener, SWT.Segments);
 	clearSegments (true);
 	applySegments ();
 }
@@ -481,11 +481,7 @@ public void addSegmentListener (SegmentListener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener (SelectionListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Selection,typedListener);
-	addListener (SWT.DefaultSelection,typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 /**
@@ -508,10 +504,7 @@ public void addSelectionListener (SelectionListener listener) {
  * @see #removeVerifyListener
  */
 public void addVerifyListener (VerifyListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Verify, typedListener);
+	addTypedListener(listener, SWT.Verify);
 }
 
 /**
@@ -3178,4 +3171,11 @@ LRESULT wmKeyDown (long hwnd, long wParam, long lParam) {
 	return result;
 }
 
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof Text text)) {
+		return;
+	}
+	text.addIcons();
+	text.setMargins();
+}
 }

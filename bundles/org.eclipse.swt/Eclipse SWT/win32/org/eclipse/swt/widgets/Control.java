@@ -23,6 +23,7 @@ import org.eclipse.swt.events.*;
 import org.eclipse.swt.graphics.*;
 import org.eclipse.swt.internal.*;
 import org.eclipse.swt.internal.gdip.*;
+import org.eclipse.swt.internal.ole.win32.*;
 import org.eclipse.swt.internal.win32.*;
 
 /**
@@ -49,6 +50,10 @@ import org.eclipse.swt.internal.win32.*;
  * @noextend This class is not intended to be subclassed by clients.
  */
 public abstract class Control extends Widget implements Drawable {
+
+	static {
+		DPIZoomChangeRegistry.registerHandler(Control::handleDPIChange, Control.class);
+	}
 
 	/**
 	 * the handle to the OS resource
@@ -136,11 +141,7 @@ public Control (Composite parent, int style) {
  * @see #removeControlListener
  */
 public void addControlListener(ControlListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Resize,typedListener);
-	addListener (SWT.Move,typedListener);
+	addTypedListener(listener, SWT.Resize, SWT.Move);
 }
 
 /**
@@ -165,10 +166,7 @@ public void addControlListener(ControlListener listener) {
  * @since 3.3
  */
 public void addDragDetectListener (DragDetectListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.DragDetect,typedListener);
+	addTypedListener(listener, SWT.DragDetect);
 }
 
 /**
@@ -191,11 +189,7 @@ public void addDragDetectListener (DragDetectListener listener) {
  * @see #removeFocusListener
  */
 public void addFocusListener (FocusListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.FocusIn,typedListener);
-	addListener (SWT.FocusOut,typedListener);
+	addTypedListener(listener, SWT.FocusIn, SWT.FocusOut);
 }
 
 /**
@@ -231,10 +225,7 @@ public void addFocusListener (FocusListener listener) {
  * @since 3.7
  */
 public void addGestureListener (GestureListener listener) {
-	checkWidget();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Gesture, typedListener);
+	addTypedListener(listener, SWT.Gesture);
 }
 
 /**
@@ -257,10 +248,7 @@ public void addGestureListener (GestureListener listener) {
  * @see #removeHelpListener
  */
 public void addHelpListener (HelpListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Help, typedListener);
+	addTypedListener(listener, SWT.Help);
 }
 
 /**
@@ -294,11 +282,7 @@ public void addHelpListener (HelpListener listener) {
  * @see #removeKeyListener
  */
 public void addKeyListener (KeyListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.KeyUp,typedListener);
-	addListener (SWT.KeyDown,typedListener);
+	addTypedListener(listener, SWT.KeyUp, SWT.KeyDown);
 }
 
 /**
@@ -323,10 +307,7 @@ public void addKeyListener (KeyListener listener) {
  * @since 3.3
  */
 public void addMenuDetectListener (MenuDetectListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.MenuDetect, typedListener);
+	addTypedListener(listener, SWT.MenuDetect);
 }
 
 /**
@@ -349,12 +330,7 @@ public void addMenuDetectListener (MenuDetectListener listener) {
  * @see #removeMouseListener
  */
 public void addMouseListener (MouseListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.MouseDown,typedListener);
-	addListener (SWT.MouseUp,typedListener);
-	addListener (SWT.MouseDoubleClick,typedListener);
+	addTypedListener(listener, SWT.MouseDown, SWT.MouseUp, SWT.MouseDoubleClick);
 }
 
 /**
@@ -377,12 +353,7 @@ public void addMouseListener (MouseListener listener) {
  * @see #removeMouseTrackListener
  */
 public void addMouseTrackListener (MouseTrackListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.MouseEnter,typedListener);
-	addListener (SWT.MouseExit,typedListener);
-	addListener (SWT.MouseHover,typedListener);
+	addTypedListener(listener, SWT.MouseEnter, SWT.MouseExit, SWT.MouseHover);
 }
 
 /**
@@ -405,10 +376,7 @@ public void addMouseTrackListener (MouseTrackListener listener) {
  * @see #removeMouseMoveListener
  */
 public void addMouseMoveListener (MouseMoveListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.MouseMove,typedListener);
+	addTypedListener(listener, SWT.MouseMove);
 }
 
 /**
@@ -433,10 +401,7 @@ public void addMouseMoveListener (MouseMoveListener listener) {
  * @since 3.3
  */
 public void addMouseWheelListener (MouseWheelListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.MouseWheel, typedListener);
+	addTypedListener(listener, SWT.MouseWheel);
 }
 
 /**
@@ -459,10 +424,7 @@ public void addMouseWheelListener (MouseWheelListener listener) {
  * @see #removePaintListener
  */
 public void addPaintListener (PaintListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Paint,typedListener);
+	addTypedListener(listener, SWT.Paint);
 }
 
 /**
@@ -497,10 +459,7 @@ public void addPaintListener (PaintListener listener) {
  * @since 3.7
  */
 public void addTouchListener (TouchListener listener) {
-	checkWidget();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Touch,typedListener);
+	addTypedListener(listener, SWT.Touch);
 }
 
 /**
@@ -523,10 +482,7 @@ public void addTouchListener (TouchListener listener) {
  * @see #removeTraverseListener
  */
 public void addTraverseListener (TraverseListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Traverse,typedListener);
+	addTypedListener(listener, SWT.Traverse);
 }
 
 int binarySearch (int [] indices, int start, int end, int index) {
@@ -760,8 +716,8 @@ int defaultBackground () {
 	return OS.GetSysColor (OS.COLOR_BTNFACE);
 }
 
-long defaultFont () {
-	return display.getSystemFont ().handle;
+long defaultFont() {
+	return display.getSystemFont(getShell().getNativeZoom()).handle;
 }
 
 int defaultForeground () {
@@ -1353,7 +1309,7 @@ public Font getFont () {
 	if (font != null) return font;
 	long hFont = OS.SendMessage (handle, OS.WM_GETFONT, 0, 0);
 	if (hFont == 0) hFont = defaultFont ();
-	return Font.win32_new (display, hFont);
+	return Font.win32_new (display, hFont, getShell().getNativeZoom());
 }
 
 /**
@@ -3358,7 +3314,7 @@ public void setCursor (Cursor cursor) {
 }
 
 void setDefaultFont () {
-	long hFont = display.getSystemFont ().handle;
+	long hFont = display.getSystemFont (getShell().getNativeZoom()).handle;
 	OS.SendMessage (handle, OS.WM_SETFONT, hFont, 0);
 }
 
@@ -3457,6 +3413,11 @@ public boolean setFocus () {
  */
 public void setFont (Font font) {
 	checkWidget ();
+	Font newFont = font;
+	if (newFont != null) {
+		if (newFont.isDisposed()) error(SWT.ERROR_INVALID_ARGUMENT);
+		newFont = Font.win32_new(newFont, getShell().getNativeZoom());
+	}
 	long hFont = 0;
 	if (font != null) {
 		if (font.isDisposed()) error(SWT.ERROR_INVALID_ARGUMENT);
@@ -4724,6 +4685,13 @@ public boolean setParent (Composite parent) {
 	long topHandle = topHandle ();
 	if (OS.SetParent (topHandle, parent.handle) == 0) return false;
 	this.parent = parent;
+	// If parent changed, zoom level might need to be adjusted
+	if (parent.getZoom() != getZoom()) {
+		int oldZoom = getZoom();
+		int newZoom = parent.getZoom();
+		float scalingFactor = 1f * newZoom / oldZoom;
+		DPIZoomChangeRegistry.applyChange(this, newZoom, scalingFactor);
+	}
 	int flags = OS.SWP_NOSIZE | OS.SWP_NOMOVE | OS.SWP_NOACTIVATE;
 	OS.SetWindowPos (topHandle, OS.HWND_BOTTOM, 0, 0, 0, 0, flags);
 	reskin (SWT.ALL);
@@ -4918,7 +4886,7 @@ LRESULT WM_DPICHANGED (long wParam, long lParam) {
 	// Map DPI to Zoom and compare
 	int nativeZoom = DPIUtil.mapDPIToZoom (OS.HIWORD (wParam));
 	int newSWTZoom = DPIUtil.getZoomForAutoscaleProperty (nativeZoom);
-	int oldSWTZoom = DPIUtil.getDeviceZoom();
+	int oldSWTZoom = getShell().getZoom();
 
 	// Throw the DPI change event if zoom value changes
 	if (newSWTZoom != oldSWTZoom) {
@@ -4927,7 +4895,19 @@ LRESULT WM_DPICHANGED (long wParam, long lParam) {
 		event.widget = this;
 		event.detail = newSWTZoom;
 		event.doit = true;
+
+		if (DPIUtil.isAutoScaleOnRuntimeActive()) {
+			DPIUtil.setDeviceZoom (nativeZoom);
+			getShell().setNativeZoom(nativeZoom);
+		}
+
 		notifyListeners(SWT.ZoomChanged, event);
+
+		if (DPIUtil.isAutoScaleOnRuntimeActive()) {
+			RECT rect = new RECT ();
+			COM.MoveMemory(rect, lParam, RECT.sizeof);
+			this.setBoundsInPixels(rect.left, rect.top, rect.right - rect.left, rect.bottom-rect.top);
+		}
 		return LRESULT.ZERO;
 	}
 	return LRESULT.ONE;
@@ -5806,5 +5786,36 @@ LRESULT wmScrollChild (long wParam, long lParam) {
 	return null;
 }
 
+
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof Control control)) {
+		return;
+	}
+	resizeFont(control, control.getShell().getNativeZoom());
+
+	Image image = control.getBackgroundImage();
+	if (image != null) {
+		if (image.isDisposed()) {
+			control.setBackgroundImage(null);
+		} else {
+			control.setBackgroundImage(Image.win32_new(image, newZoom));
+		}
+	}
+}
+
+private static void resizeFont(Control control, int newZoom) {
+	Display display = control.getDisplay();
+	Font font = control.font;
+	if (font == null) {
+		long currentFontHandle = OS.SendMessage (control.handle, OS.WM_GETFONT, 0, 0);
+		if (currentFontHandle != 0) {
+			Font newFont  = display.getSystemFont(newZoom);
+			long newFontHandle = newFont.handle;
+			OS.SendMessage(control.handle, OS.WM_SETFONT, newFontHandle, 1);
+		}
+	} else {
+		control.setFont(Font.win32_new(font, newZoom));
+	}
+}
 }
 

@@ -46,6 +46,10 @@ public class TreeColumn extends Item {
 	String toolTipText;
 	int id;
 
+	static {
+		DPIZoomChangeRegistry.registerHandler(TreeColumn::handleDPIChange, TreeColumn.class);
+	}
+
 /**
  * Constructs a new instance of this class given its parent
  * (which must be a <code>Tree</code>) and a style value
@@ -149,11 +153,7 @@ public TreeColumn (Tree parent, int style, int index) {
  * @see #removeControlListener
  */
 public void addControlListener(ControlListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Resize,typedListener);
-	addListener (SWT.Move,typedListener);
+	addTypedListener(listener, SWT.Resize, SWT.Move);
 }
 
 /**
@@ -181,11 +181,7 @@ public void addControlListener(ControlListener listener) {
  * @see SelectionEvent
  */
 public void addSelectionListener (SelectionListener listener) {
-	checkWidget ();
-	if (listener == null) error (SWT.ERROR_NULL_ARGUMENT);
-	TypedListener typedListener = new TypedListener (listener);
-	addListener (SWT.Selection,typedListener);
-	addListener (SWT.DefaultSelection,typedListener);
+	addTypedListener(listener, SWT.Selection, SWT.DefaultSelection);
 }
 
 static int checkStyle (int style) {
@@ -761,6 +757,17 @@ void updateToolTip (int index) {
 			lpti.bottom = rect.bottom;
 			OS.SendMessage (hwndHeaderToolTip, OS.TTM_NEWTOOLRECT, 0, lpti);
 		}
+	}
+}
+
+private static void handleDPIChange(Widget widget, int newZoom, float scalingFactor) {
+	if (!(widget instanceof TreeColumn treeColumn)) {
+		return;
+	}
+	treeColumn.setWidth(Math.round(treeColumn.getWidth() * scalingFactor));
+	Image image = treeColumn.image;
+	if (image != null) {
+		treeColumn.setImage (Image.win32_new(image, newZoom));
 	}
 }
 }
