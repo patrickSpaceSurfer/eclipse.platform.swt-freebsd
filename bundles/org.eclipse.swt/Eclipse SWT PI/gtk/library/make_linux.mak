@@ -99,15 +99,17 @@ ATK_OBJECTS = swt.o atk.o atk_structs.o atk_custom.o atk_stats.o
 WEBKIT_OBJECTS = swt.o webkitgtk.o webkitgtk_structs.o webkitgtk_stats.o webkitgtk_custom.o
 GLX_OBJECTS = swt.o glx.o glx_structs.o glx_stats.o
 
+port_prefix=`pkg-config --variable=prefix gtk+-3.0`
 CFLAGS := $(CFLAGS) \
 		-DSWT_VERSION=$(SWT_VERSION) \
 		$(SWT_DEBUG) \
 		$(SWT_WEBKIT_DEBUG) \
-		-DLINUX -DGTK \
+		-DFREEBSD -DGTK \
+		-I$(port_prefix)/include \
 		-I$(SWT_JAVA_HOME)/include \
-		-I$(SWT_JAVA_HOME)/include/linux \
+		-I$(SWT_JAVA_HOME)/include/freebsd \
 		${SWT_PTR_CFLAGS}
-LFLAGS = -shared -fPIC ${SWT_LFLAGS}
+LFLAGS = -shared -fPIC ${SWT_LFLAGS} -L$(port_prefix)/lib
 
 # Treat all warnings as errors. If your new code produces a warning, please
 # take time to properly understand and fix/silence it as necessary.

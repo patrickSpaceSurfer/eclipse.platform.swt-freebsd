@@ -116,33 +116,42 @@
       <activation>
         <os>
           <family>unix</family>
-          <name>Linux</name>
-        </os>
+	</os>
       </activation>
-      <modules>
-        <module>tests/org.eclipse.swt.tests.gtk</module>
-      </modules>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.eclipse.tycho</groupId>
-            <artifactId>target-platform-configuration</artifactId>
-            <configuration>
-              <environments>
-                <environment>
-                  <os>linux</os>
-                  <ws>gtk</ws>
-                  <arch>x86_64</arch>
-                </environment>
-                <environment>
-                  <os>linux</os>
-                  <ws>gtk</ws>
-                  <arch>ppc64le</arch>
-                </environment>
-              </environments>
-            </configuration>
-          </plugin>
-        </plugins>
+	  <modules>
+<!-- disabled
+	    <module>tests/org.eclipse.swt.tests.gtk</module>
+-->
+	  </modules>
+	  <build>
+	      <plugins>
+	        <plugin>
+	          <groupId>org.eclipse.tycho</groupId>
+	          <artifactId>target-platform-configuration</artifactId>
+	          <version>${tycho.version}</version>
+	          <configuration>
+	            <environments>
+				  <environment>
+					<os>freebsd</os>
+					<ws>gtk</ws>
+					<arch>amd64</arch>
+				  </environment>
+<!--
+				  <environment>
+					<os>freebsd</os>
+					<ws>gtk</ws>
+					<arch>powerpc64</arch>
+				  </environment>
+				  <environment>
+					<os>freebsd</os>
+					<ws>gtk</ws>
+					<arch>powerpc64le</arch>
+				  </environment>
+-->
+				</environments>
+	          </configuration>
+	        </plugin>
+	      </plugins>
       </build>
     </profile>
     <profile>
